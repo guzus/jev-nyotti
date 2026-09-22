@@ -152,7 +152,8 @@
     "Local preview uses a local SQLite directory; deployed GPU remains separate."
   ],
   "omitted": [
-    "No training or order execution exists.",
+    "Manual synthetic training rehearsal is documented separately in diagrams/training.mmd.",
+    "No order execution exists.",
     "Provider internal network topology is not represented."
   ]
 }

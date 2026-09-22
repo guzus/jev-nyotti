@@ -1,0 +1,192 @@
+{
+  "date": "2026-09-22",
+  "scope": "Synthetic pipeline rehearsal only; no trader data, profitability validation or production promotion.",
+  "first_attempt": {
+    "run_id": "4eaff443064745bea8d6bdaae1b7dfb3",
+    "completed_steps": 100,
+    "adapter_saved_at_child_seconds": 372.81,
+    "reload_status": "failed",
+    "reload_max_logit_difference": 0.5,
+    "note": "Used unload/re-wrap without matching Unsloth post-patching; no complete report persisted in this attempt."
+  },
+  "measured_training_attempt": {
+    "run_id": "db8832ef9ba14411841a3537ee801c38",
+    "provenance": "synthetic_rehearsal_not_trader_data",
+    "model": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "training_method": "BF16 LoRA rank 16; text-only",
+    "completed_steps": 100,
+    "requested_steps": 100,
+    "batch_size": 2,
+    "gradient_accumulation": 2,
+    "train_examples": 192,
+    "evaluation_examples": 12,
+    "min_input_tokens": 1680,
+    "mean_input_tokens": 1871.0677083333333,
+    "max_input_tokens": 1894,
+    "training_seconds_including_compile": 192.94011145500002,
+    "steady_tokens_per_second_after_5_steps": 9710.848765058052,
+    "median_step_seconds_after_5_steps": 0.7625584700000445,
+    "first_10_mean_loss": 0.7157250921241939,
+    "last_10_mean_loss": 5.900855414964213e-07,
+    "synthetic_rule_accuracy_before": 0.5833333333333334,
+    "synthetic_rule_accuracy_after": 1.0,
+    "adapter_tensors_changed": 496,
+    "reload_status": "failed",
+    "training_peak_allocated_vram_gib": 10.030091762542725,
+    "child_process_elapsed_seconds": 315.658632615,
+    "gpu_cost_estimate_usd": 0.346277519978655,
+    "cost_note": "Estimate for observed child runtime only; excludes container startup, CPU/RAM/storage and CPU preparation. Not an invoice.",
+    "packages": {
+      "unsloth": "2026.9.7",
+      "unsloth_zoo": "2026.9.6",
+      "torch": "2.8.0",
+      "transformers": "5.5.0",
+      "peft": "0.18.1",
+      "trl": "0.24.0"
+    },
+    "adapter_tensor_dtypes": [
+      "torch.float32"
+    ],
+    "saved_tensor_bytes_identical": true,
+    "reload_error": "AssertionError: adapter bytes differ: base_model.model.model.language_model.layers.0.linear_attn.in_proj_a.lora_A.weight"
+  },
+  "adapter": {
+    "bytes": 129934448,
+    "sha256": "4c29fe9c9e7f9d3e7ed62144b0396389ff349c3dae4e7d68e7715506ff62ab1a"
+  },
+  "export_verification": {
+    "run_id": "c22eab5c05d14037915c42db396ef25d",
+    "source_run_id": "db8832ef9ba14411841a3537ee801c38",
+    "provenance": "synthetic_rehearsal_not_trader_data",
+    "mode": "verify_existing_adapter",
+    "reload_status": "passed",
+    "reloaded_tensor_bytes_identical": true,
+    "evaluation_reloaded": {
+      "accuracy": 1.0,
+      "rows": [
+        {
+          "target": 0,
+          "prediction": 0,
+          "logits": [
+            36.5,
+            16.125,
+            17.0
+          ]
+        },
+        {
+          "target": 0,
+          "prediction": 0,
+          "logits": [
+            35.0,
+            17.875,
+            15.8125
+          ]
+        },
+        {
+          "target": 2,
+          "prediction": 2,
+          "logits": [
+            15.9375,
+            17.125,
+            35.25
+          ]
+        },
+        {
+          "target": 0,
+          "prediction": 0,
+          "logits": [
+            36.5,
+            15.75,
+            16.25
+          ]
+        },
+        {
+          "target": 1,
+          "prediction": 1,
+          "logits": [
+            17.125,
+            35.75,
+            17.75
+          ]
+        },
+        {
+          "target": 0,
+          "prediction": 0,
+          "logits": [
+            35.0,
+            15.4375,
+            17.875
+          ]
+        },
+        {
+          "target": 2,
+          "prediction": 2,
+          "logits": [
+            22.125,
+            16.0,
+            35.75
+          ]
+        },
+        {
+          "target": 1,
+          "prediction": 1,
+          "logits": [
+            17.0,
+            36.5,
+            17.625
+          ]
+        },
+        {
+          "target": 2,
+          "prediction": 2,
+          "logits": [
+            16.125,
+            17.5,
+            34.75
+          ]
+        },
+        {
+          "target": 0,
+          "prediction": 0,
+          "logits": [
+            36.75,
+            16.125,
+            16.625
+          ]
+        },
+        {
+          "target": 1,
+          "prediction": 1,
+          "logits": [
+            17.125,
+            34.75,
+            18.0
+          ]
+        },
+        {
+          "target": 2,
+          "prediction": 2,
+          "logits": [
+            16.125,
+            17.125,
+            34.5
+          ]
+        }
+      ]
+    },
+    "reload_max_logit_difference": 0.0,
+    "reload_predictions_identical": true,
+    "model": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "child_process_elapsed_seconds": 117.276944595,
+    "gpu_cost_estimate_usd": 0.128652808220715,
+    "cost_note": "GPU estimate for this verification process only; excludes source training runs, startup, CPU/RAM/storage. Not an invoice."
+  },
+  "overall_result": "Training and export/reload verified across the measured training attempt and the separate verification run. The original failed run reports remain unchanged.",
+  "session_gpu_cost_estimate_usd": 0.9,
+  "cost_note": "Approximate sum across both training attempts and verification, including the failed attempts; excludes container startup, CPU/RAM/storage and CPU preparation. Not an invoice or verified remaining credit balance.",
+  "gpu_apps_stopped": true
+}

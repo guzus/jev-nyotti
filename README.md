@@ -42,7 +42,7 @@ Use `Qwen/Qwen3.5-4B` as the client model. This preserves TypeSafe's wire format
 - SQLite on Railway retains shares for 30 days and enforces persistent daily quotas. Identical snapshots are cached/coalesced. Keep one Railway replica.
 - Deployment cap: 100 classification questions/day, 3 public analyses/IP/minute. Failed upstream calls consume the allowance too. This is **not a dollar spending cap**. GPU idle time, CPU/memory and storage can consume credit; Railway billing is separate.
 
-[Deployment and recovery](docs/deployment.md) · [Inference service](inference/README.md) · [Future dataset/evaluation plan](docs/experiment.md)
+[Synthetic training rehearsal](training/README.md) · [Deployment and recovery](docs/deployment.md) · [Inference service](inference/README.md) · [Future dataset/evaluation plan](docs/experiment.md)
 
 ## Verify
 

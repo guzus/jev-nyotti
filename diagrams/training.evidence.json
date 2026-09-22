@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "scope": "Manual synthetic training rehearsal, isolated from production serving",
+  "nodes": [
+    {
+      "id": "artifacts",
+      "label": "Private adapter and report",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/run.py"
+      ]
+    },
+    {
+      "id": "cache",
+      "label": "Training cache",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_rehearsal.py"
+      ]
+    },
+    {
+      "id": "cli",
+      "label": "Manual rehearsal",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_rehearsal.py"
+      ]
+    },
+    {
+      "id": "cpu",
+      "label": "CPU preparation",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_rehearsal.py"
+      ]
+    },
+    {
+      "id": "data",
+      "label": "Synthetic examples",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/data.py"
+      ]
+    },
+    {
+      "id": "gpu",
+      "label": "One H100",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/run.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "artifacts",
+      "to": "cli",
+      "label": "report",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_rehearsal.py"
+      ]
+    },
+    {
+      "from": "cache",
+      "to": "gpu",
+      "label": "Cached model",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_rehearsal.py"
+      ]
+    },
+    {
+      "from": "cli",
+      "to": "cpu",
+      "label": "prepare",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_rehearsal.py"
+      ]
+    },
+    {
+      "from": "cli",
+      "to": "gpu",
+      "label": "bounded call",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_rehearsal.py"
+      ]
+    },
+    {
+      "from": "cpu",
+      "to": "cache",
+      "label": "Pinned Qwen weights",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_rehearsal.py"
+      ]
+    },
+    {
+      "from": "data",
+      "to": "gpu",
+      "label": "Synthetic examples",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/run.py"
+      ]
+    },
+    {
+      "from": "gpu",
+      "to": "artifacts",
+      "label": "Adapter and report",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/run.py"
+      ]
+    }
+  ],
+  "assumptions": [
+    "This diagram describes a manually invoked job, not a continuously deployed training service."
+  ],
+  "omitted": [
+    "No adapter promotion or live serving update is implemented.",
+    "Production Railway and L4 serving remain in the separate runtime diagram."
+  ]
+}

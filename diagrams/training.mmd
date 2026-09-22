@@ -1,0 +1,12 @@
+flowchart LR
+  cli["Manual rehearsal\n25-minute deadline"] -->|prepare| cpu["CPU preparation\nPinned Qwen weights"]
+  cpu --> cache[(Training cache)]
+  cache --> gpu["One H100\nBF16 LoRA + reload check"]
+  data["Synthetic examples\nNot trader records"] --> gpu
+  cli -->|bounded call| gpu
+  gpu --> artifacts[(Private adapter\nand report)]
+  artifacts -->|report| cli
+  classDef manual fill:#fff3cd,stroke:#b7791f,color:#3b2b00;
+  classDef storage fill:#dbeafe,stroke:#2563eb,color:#172554;
+  class cli,cpu,gpu,data manual;
+  class cache,artifacts storage;
