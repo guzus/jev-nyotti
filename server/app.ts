@@ -29,11 +29,14 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     if(!supplied||!timingSafeEqual(createHash('sha256').update(supplied).digest(),keyHash))return next(new ApiError(401,'unauthorized','유효한 Bearer API 키가 필요합니다.'));
     next();
   }
+  function consumeRate(req:Request,scope:string,count:number) {
+    const digest=createHmac('sha256',config.apiKey||'local-development').update(req.ip??'unknown').digest('hex');
+    store.rateLimit(`${scope}:${digest}`,count);
+  }
   function limit(scope:string,count:number) {
     return(req:Request,_res:Response,next:NextFunction)=>{
       try {
-        const digest=createHmac('sha256',config.apiKey||'local-development').update(req.ip??'unknown').digest('hex');
-        store.rateLimit(`${scope}:${digest}`,count);next();
+        consumeRate(req,scope,count);next();
       }catch(e){next(e);}
     };
   }
@@ -52,12 +55,17 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
   }
 
   const decisionsInFlight=new Map<string,Promise<Decision>>();
-  async function analyze(request:TradeRequest):Promise<Decision> {
+  function decisionCacheKey(request:TradeRequest,market:Market) {
+    // Bump version when the analysis prompt or feature definitions change.
+    return createHash('sha256').update(JSON.stringify({version:1,model:config.modelId,revision:config.modelRevision,training:config.trainingStatus,request,asOf:market.asOf,candles:market.candles})).digest('hex');
+  }
+  async function analyze(request:TradeRequest,beforeInference:()=>void):Promise<Decision> {
     const market=await readMarket(request);
-    const cacheKey=createHash('sha256').update(JSON.stringify({version:1,model:config.modelId,revision:config.modelRevision,training:config.trainingStatus,request,asOf:market.asOf,candles:market.candles})).digest('hex');
+    const cacheKey=decisionCacheKey(request,market);
     const cached=store.getCached(cacheKey);if(cached)return cached;
     const pending=decisionsInFlight.get(cacheKey);if(pending)return {...await pending,cached:true};
     const task=(async()=>{
+      beforeInference();
       const started=performance.now();
       const result=await evaluate({
         model:config.modelId,
@@ -89,10 +97,12 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     scoreSemantics:'uncalibrated_model_relative_likelihood',executionEnabled:false}));
   app.get('/api/market',limit('market',60),async(req,res)=>{
     const q=tradeSchema.parse({symbol:req.query.symbol,interval:Number(req.query.interval)});
-    res.setHeader('Cache-Control','no-store');res.json(await readMarket(q));
+    const market=await readMarket(q);
+    // A page view only reads SQLite; it must never wake the GPU on a cache miss.
+    res.setHeader('Cache-Control','no-store');res.json({...market,cachedDecision:store.getCached(decisionCacheKey(q,market))});
   });
-  app.post('/api/analyze',limit('analyze',config.publicRate),async(req,res)=>{
-    res.setHeader('Cache-Control','no-store');res.json(await analyze(tradeSchema.parse(req.body)));
+  app.post('/api/analyze',limit('analyze-read',120),async(req,res)=>{
+    res.setHeader('Cache-Control','no-store');res.json(await analyze(tradeSchema.parse(req.body),()=>consumeRate(req,'analyze',config.publicRate)));
   });
   app.get('/api/decisions/:id',limit('read',120),(req,res)=>{
     const id=z.uuid().safeParse(req.params.id);
@@ -109,8 +119,8 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     const body=systemOneSchema.parse(req.body);
     res.json(await evaluate(body));
   });
-  app.post('/v1/trading/decisions',auth,limit('trading',30),async(req,res)=>{
-    res.setHeader('Cache-Control','no-store');res.json(await analyze(tradeSchema.parse(req.body)));
+  app.post('/v1/trading/decisions',auth,limit('trading-read',120),async(req,res)=>{
+    res.setHeader('Cache-Control','no-store');res.json(await analyze(tradeSchema.parse(req.body),()=>consumeRate(req,'trading',30)));
   });
   app.get('/openapi.json',(_req,res)=>res.json({
     openapi:'3.1.0',info:{title:'jev뇨띠 — Qwen TypeSafe-compatible API',version:'0.1.0',description:'TypeSafe wire-format compatibility using Qwen logits. No TypeSafe model weights or calibration. Choice/score confidence = 1 − normalized entropy. Maximum 8 independent questions; input token limit enforced by model service. No order execution.'},
@@ -118,7 +128,7 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}},schemas:{SystemOne:z.toJSONSchema(systemOneSchema),TradingRequest:z.toJSONSchema(tradeSchema)}},
     paths:{
       '/v1/systemone':{post:{operationId:'systemOne',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/SystemOne'}}}},responses:{'200':{description:'TypeSafe answers: choice / score / noul, usage and score semantics metadata'},'401':{description:'Invalid API key'},'422':{description:'Invalid request / model / token limit'},'429':{description:'Rate or daily quota exceeded'},'503':{description:'Model unavailable'},'529':{description:'At capacity'}}}},
-      '/v1/trading/decisions':{post:{operationId:'tradingDecision',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/TradingRequest'}}}},responses:{'200':{description:'Stored research stance from actual closed Kraken candles'},'503':{description:'Market or model unavailable'}}}},
+      '/v1/trading/decisions':{post:{operationId:'tradingDecision',description:'Reuses the persisted result for identical closed candles, symbol, interval, model revision and prompt version. Concurrent identical requests share one inference. Cache hits retain the original id, generatedAt, marketAsOf and latencyMs, set cached=true and consume no inference quota. New snapshots require explicit requests; there is no background inference.',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/TradingRequest'}}}},responses:{'200':{description:'Stored research stance from actual closed Kraken candles'},'429':{description:'Request or new-inference quota exceeded'},'503':{description:'Market or model unavailable'}}}},
       '/v1/models':{get:{operationId:'listModels',security:[{bearerAuth:[]}],responses:{'200':{description:'Actual configured model identity'}}}},
     },
   }));

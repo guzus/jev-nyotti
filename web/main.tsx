@@ -19,6 +19,7 @@ type Status = {
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type Market = {
   symbol: SymbolCode; interval: Interval; source: string; asOf: string; fetchedAt: string;
+  cachedDecision: Decision | null;
   candles: Candle[];
   features: { lastClose: number; changePct: number; rsi14: number | null; volatilityPct: number | null; volumeRatio: number | null };
 };
@@ -114,8 +115,13 @@ function App() {
   useEffect(() => {
     const controller = new AbortController();
     setMarketLoading(true); setMarketError(''); setMarket(null);
+    if (!new URLSearchParams(window.location.search).has('decision')) setDecision(null);
     request<Market>(`/api/market?symbol=${symbol}&interval=${interval}`, { signal: controller.signal }).then((data) => {
-      if (!controller.signal.aborted) setMarket(data);
+      if (!controller.signal.aborted) {
+        setMarket(data);
+        // Explicit share links keep their original snapshot instead of being replaced by today's cache.
+        if (!new URLSearchParams(window.location.search).has('decision')) setDecision(data.cachedDecision);
+      }
     }).catch((error) => {
       if (!controller.signal.aborted) setMarketError(error.message);
     }).finally(() => { if (!controller.signal.aborted) setMarketLoading(false); });
@@ -179,7 +185,8 @@ function App() {
   const canAnalyze = status?.providerConfigured && !!market?.candles.length && !marketLoading && !busy;
   const trend: 'up' | 'down' = market && market.features.changePct < 0 ? 'down' : 'up';
   const renderDecisionAction = (placement: 'desktop' | 'mobile') => <div className={`decision-action decision-action-${placement}`}>
-    <button type="button" className="analyze-button" disabled={!canAnalyze} onClick={analyze}>{analyzing ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}<span>{analyzing ? '분석 중' : decision ? '다시 분석' : '분석하기'}</span>{!analyzing && <ArrowRight size={18} />}</button>
+    <button type="button" className="analyze-button" disabled={!canAnalyze} onClick={analyze}>{analyzing ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}<span>{analyzing ? '분석 중' : decision ? '최신 분석 확인' : '분석하기'}</span>{!analyzing && <ArrowRight size={18} />}</button>
+    {status?.providerConfigured && !statusError && <p className="model-state">같은 시장 데이터는 저장된 결과를 사용해요.</p>}
     {(statusError || !status?.providerConfigured) && <p className="model-state" role="status">{statusError ? '모델 연결 확인 실패 · 새로고침해 주세요.' : !status ? '모델 연결 확인 중' : '모델 서버 연결 전'}</p>}
   </div>;
 
@@ -231,8 +238,8 @@ function App() {
               <div className="result-direction"><span className="direction-symbol"><ActionIcon size={30} strokeWidth={2} /></span><div><span className="direction-label">{action.label}</span><h3>{action.name}</h3></div></div>
               {scoresValid && scoreTotal > 0 && decision.scoreType === 'model_relative_likelihood' ? <div className="score-chart"><div className="score-heading"><span>행동별 상대 점수</span><span>수익 확률 아님</span></div>{(['long', 'short', 'hold'] as const).map((key) => <div className={`score-row score-${key}${key === decision.action ? ' score-chosen' : ''}`} key={key}><span>{ACTIONS[key].label}</span><div className="score-track"><div style={{ width: `${rawScores[key] / scoreTotal * 100}%` }} /></div><strong>{rawScores[key].toFixed(3)}</strong></div>)}</div> : <div className="score-unavailable">상대 점수 없음</div>}
               <div className="result-metadata">
-                <span><Clock3 size={12} aria-hidden="true" /> {number(decision.latencyMs / 1000, 1)}초{decision.cached ? ' · 저장된 결과' : ''} · {clock(decision.generatedAt)}</span>
-                <span>시장 기준 {clock(decision.marketAsOf)}</span>
+                <span><Clock3 size={12} aria-hidden="true" /> {decision.cached ? '저장된 분석' : '새 분석'} · {clock(decision.generatedAt)}</span>
+                <span>시장 기준 {clock(decision.marketAsOf)} · 최초 분석 {number(decision.latencyMs / 1000, 1)}초</span>
               </div>
               <div className="share-actions"><button type="button" className="secondary-button" onClick={() => share()}><Link2 size={15} /> 공유 링크</button><button type="button" className="secondary-button" aria-label="판단 데이터 JSON 복사" onClick={() => share(true)}><Copy size={15} /> JSON</button></div>
             </div> : <div className="decision-empty"><div className="stance-options" aria-hidden="true"><span className="stance-long">LONG</span><span className="stance-short">SHORT</span><span className="stance-hold">HOLD</span></div><p>지금 시장에 대한 모델의 선택은?</p></div>}

@@ -38,7 +38,7 @@ MODAL_PROXY_SECRET=<proxy secret>
 
 Railway volumes are root-owned. The image defaults to `USER node`; the Railway override above permits the initial bootstrap only. `server/bootstrap.ts` creates/chowns the data directory, clears supplementary groups and irreversibly drops GID/UID to 1000 before loading the server. A real Docker test confirmed all real/effective/saved UID/GID values in `/proc/1/status` were 1000, the SQLite files belonged to node, and health succeeded. Never replace the bootstrap with a root HTTP entrypoint.
 
-Quotas count classification questions, reserve before calls, persist across deploys and reset at UTC midnight. The IP limiter trusts one Railway edge proxy and stores HMAC identifiers. Cached analyses do not consume GPU quota. These are usage controls, not a dollar cap; Modal account budgets are separate.
+Quotas count classification questions, reserve before calls, persist across deploys and reset at UTC midnight. The IP limiter trusts one Railway edge proxy and stores HMAC identifiers. Cached analyses and followers of an in-flight analysis do not consume GPU quota or the per-IP new-analysis allowance. General HTTP read limits remain in place. Page views restore only an exact cached snapshot and never start inference. These are usage controls, not a dollar cap; Modal account budgets are separate.
 
 ## Verify, rollback and stop
 

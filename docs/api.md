@@ -12,7 +12,7 @@ from typesafe_sdk import TypeSafeClient, Choice, RetryPolicy
 
 with TypeSafeClient(
     api_key=os.environ['JEV_API_KEY'],
-    base_url='https://jev-trading-web-production.up.railway.app',
+    base_url='https://jevtrade.up.railway.app',
     model='Qwen/Qwen3.5-4B',
     retry=RetryPolicy(max_retries=0, timeout=180),
 ) as client:
@@ -43,3 +43,9 @@ Errors: `{ "error": { "code": "...", "message": "..." } }`. 401 invalid API key;
 Public analysis takes only a fixed symbol/interval and server-owned prompt. No API key or arbitrary prompt reaches the browser. The chart shows 96 closed candles; 24 plus numerical features enter the model. Change covers the graphed window; RSI uses simple mean gain/loss over 14 intervals; volatility is population standard deviation of close returns (%); volume ratio uses the preceding 20-candle mean.
 
 `/?decision=<uuid>` resolves the original persisted output, market cutoff and model revision without re-running inference. Shares expire after 30 days. Cached outputs retain original timestamps. Long/short/hold are hypothetical directions inferred from spot candles, not executable orders.
+
+`GET /api/market?symbol=BTCUSD&interval=15` includes `cachedDecision` (a persisted decision with `cached: true`, or `null`). This lookup never invokes the model. The frontend restores that result on ordinary page loads and market changes; explicit share links retain their original result. All market responses use `Cache-Control: no-store` so browsers do not substitute an outdated snapshot.
+
+`POST /api/analyze` and authenticated `POST /v1/trading/decisions` reuse the same SQLite cache. Keys include symbol, interval, the full closed-candle snapshot, cutoff, model identity/revision, training status and prompt version. Identical concurrent requests share a single inference. New or corrected candles and changed model revisions miss the cache; no background refresh or inference is scheduled. Preserve the Railway `/data` volume across deploys.
+
+Hits preserve `id`, `generatedAt`, `marketAsOf`, scores and `latencyMs`, and set `cached: true`. `latencyMs` always means the **original inference duration**, not cache retrieval time. Hits and in-flight followers do not consume the daily model budget or per-IP new-analysis allowance. General request limits still apply (120 analysis requests/IP/minute, 60 market reads/IP/minute). Cache misses still require an available model and quota; errors are never saved as decisions. `/v1/systemone` is unchanged and is not cached.

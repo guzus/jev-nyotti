@@ -39,8 +39,8 @@ Use `Qwen/Qwen3.5-4B` as the client model. This preserves TypeSafe's wire format
 - Modal L4: 0 minimum / 1 maximum container, 60-second idle scale-down; model cache persists. Cold-start latency includes loading weights.
 - Every candidate is scored through verified single-token labels. Conditional softmax scores are **not calibrated probabilities of returns**. Confidence is 1 minus normalized entropy.
 - Actual Kraken closed candles only; stale, invalid and gapped data is rejected. No order execution, exchange credentials or trader history.
-- SQLite on Railway retains shares for 30 days and enforces persistent daily quotas. Identical snapshots are cached/coalesced. Keep one Railway replica.
-- Deployment cap: 100 classification questions/day, 3 public analyses/IP/minute. Failed upstream calls consume the allowance too. This is **not a dollar spending cap**. GPU idle time, CPU/memory and storage can consume credit; Railway billing is separate.
+- SQLite on Railway retains shares for 30 days and enforces persistent daily quotas. Identical snapshots are cached/coalesced across visitors and survive deploys. The page automatically shows an existing result for the current candles; a page view never starts inference. New candles or a changed model revision require a new, explicitly requested analysis. Keep one Railway replica.
+- Deployment cap: 100 classification questions/day, 3 **new** public analyses/IP/minute. Cache hits and requests joining an existing analysis consume neither inference quota; HTTP reads have separate rate limits. Failed upstream calls consume the allowance too. This is **not a dollar spending cap**. GPU idle time, CPU/memory and storage can consume credit; Railway billing is separate.
 
 [Synthetic training rehearsal](training/README.md) · [Deployment and recovery](docs/deployment.md) · [Inference service](inference/README.md) · [Future dataset/evaluation plan](docs/experiment.md)
 
