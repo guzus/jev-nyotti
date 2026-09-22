@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import re
 from dataclasses import dataclass, field
@@ -11,6 +12,17 @@ MAX_BODY_BYTES = 65_536
 MAX_INPUT_TOKENS = 8_192
 MAX_JOBS = 8
 MAX_OPTIONS = 255
+MAX_HOLD_MARGIN = 20.0
+
+
+def parse_hold_margin(raw: str | None) -> float:
+    """ACTION_HOLD_MARGIN env value; unset or blank means 0.0 (plain argmax)."""
+    if raw is None or not raw.strip():
+        return 0.0
+    try:
+        return float(raw)
+    except ValueError:
+        raise ValueError("ACTION_HOLD_MARGIN must be a finite number with |value| <= 20") from None
 
 
 @dataclass(frozen=True)
@@ -21,6 +33,8 @@ class Settings:
     adapter_id: str | None = None
     adapter_revision: str | None = None
     adapter_sha256: str | None = None
+    # ACTION_V1 decision rule: subtract this from the hold logit before argmax.
+    action_hold_margin: float = 0.0
 
     def __post_init__(self) -> None:
         # Validate before model downloads or GPU work. Never include supplied values.
@@ -40,6 +54,9 @@ class Settings:
         if self.adapter_sha256:
             if not self.adapter_id or not re.fullmatch(r"[0-9a-f]{64}", self.adapter_sha256):
                 raise ValueError("LORA_SHA256 requires a configured adapter and its 64-character SHA-256")
+        margin = self.action_hold_margin
+        if isinstance(margin, bool) or not isinstance(margin, (int, float)) or not math.isfinite(margin) or abs(margin) > MAX_HOLD_MARGIN:
+            raise ValueError("ACTION_HOLD_MARGIN must be a finite number with |value| <= 20")
 
     @property
     def provenance_revision(self) -> str:
@@ -56,4 +73,5 @@ class Settings:
             adapter_id=os.environ.get("LORA_MODEL_ID") or None,
             adapter_revision=os.environ.get("LORA_REVISION") or None,
             adapter_sha256=os.environ.get("LORA_SHA256") or None,
+            action_hold_margin=parse_hold_margin(os.environ.get("ACTION_HOLD_MARGIN")),
         )
