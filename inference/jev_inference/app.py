@@ -108,6 +108,7 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
             "model": MODEL_ID,
             "revision": configuration.provenance_revision,
             "fineTuned": configuration.adapter_id is not None,
+            "adapterVerification": getattr(engine, "adapter_verification", None),
             "limits": {"jobs": MAX_JOBS, "options": MAX_OPTIONS, "inputTokensPerJob": MAX_INPUT_TOKENS, "bodyBytes": MAX_BODY_BYTES},
         }, status_code=200 if app.state.ready else 503)
 

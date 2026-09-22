@@ -20,6 +20,7 @@ class Settings:
     revision: str = MODEL_REVISION
     adapter_id: str | None = None
     adapter_revision: str | None = None
+    adapter_sha256: str | None = None
 
     def __post_init__(self) -> None:
         # Validate before model downloads or GPU work. Never include supplied values.
@@ -36,6 +37,9 @@ class Settings:
                 raise ValueError("LORA_MODEL_ID must be a Hugging Face owner/repository")
             if not re.fullmatch(r"[0-9a-f]{40}", self.adapter_revision or ""):
                 raise ValueError("LORA_REVISION must be a pinned 40-character commit SHA")
+        if self.adapter_sha256:
+            if not self.adapter_id or not re.fullmatch(r"[0-9a-f]{64}", self.adapter_sha256):
+                raise ValueError("LORA_SHA256 requires a configured adapter and its 64-character SHA-256")
 
     @property
     def provenance_revision(self) -> str:
@@ -51,4 +55,5 @@ class Settings:
             revision=os.environ.get("MODEL_REVISION", MODEL_REVISION),
             adapter_id=os.environ.get("LORA_MODEL_ID") or None,
             adapter_revision=os.environ.get("LORA_REVISION") or None,
+            adapter_sha256=os.environ.get("LORA_SHA256") or None,
         )

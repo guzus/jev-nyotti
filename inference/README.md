@@ -3,8 +3,12 @@
 This GPU service supplies the Railway gateway with actual **next-token logits**
 for every candidate option. It does not ask the model to invent a numeric
 confidence, truncate options to an API's top-k logprobs, or place trades.
-The initial model is the unmodified `Qwen/Qwen3.5-4B` post-trained checkpoint;
-**no 워뇨띠 data has been acquired or used to fine-tune it**.
+`modal_app.py` serves the original `Qwen/Qwen3.5-4B` checkpoint.
+`modal_adapter.py` serves the pinned public `guzus/jev-nyotti` LoRA from the
+real-data next-hour position-side imitation pilot. The adapter predicts the
+trader's next-hour exposure class from historical features; it is not a validated
+profitability policy or a generic price-direction model. See the
+[training report](../training/REAL_DATA_RESULTS.md).
 
 Base weights and tokenizer are pinned to Hugging Face revision
 `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a` (checked 2026-09-22).
@@ -128,13 +132,51 @@ implementation uses native Transformers/SDPA rather than vLLM because the API
 needs the complete selected-label distribution, including low-ranked options.
 It does not silently fall back to generated prose or a smaller model.
 
-## Optional future LoRA
+## Verified jev-nyotti deployment
+
+```sh
+modal deploy inference/modal_adapter.py
+```
+
+This creates the separate `jev-nyotti` Modal app using the same private inference
+secret, proxy authentication, L4, min=0/max=1 containers and 60-second idle timeout.
+It leaves the original base-model endpoint available for rollback. The canary pins
+adapter revision `73867def94f8b062700ad3f8d63128b4e1c9b1d4` and safetensors SHA-256
+`918fdcd054e3d77116ddb7b708cc7c2a24aa443696f4639bd103408777051831`.
+
+The [deployment verification record](ADAPTER_DEPLOYMENT.json) confirms the live
+canary loaded all 496 FP32 tensors exactly and returned finite logits with the
+full adapter revision. First cold health took 134.6 seconds. Two 241-token
+synthetic score requests then took 4.85 and 1.43 seconds end to end (server scoring
+3.45 seconds on the first forward, 0.16 seconds on the second). These are startup
+and smoke measurements, not production latency percentiles. A 300-second gateway
+timeout allows the observed first cold start; cached UI responses should not wait
+on each model wake-up.
+
+Startup verifies the adapter's exact base revision, file checksum, all exported
+target module names/shapes, nonzero A/B pairs and every loaded tensor's keys,
+shape, FP32 dtype and bytes. It then verifies that the adapter is active and
+unmerged. Missing weights, silent BF16 narrowing, an incompatible export or a
+no-op adapter fails startup. `/healthz` includes `adapterVerification` with its
+checksum, tensor count and exact-weight verification result. No fallback to the
+base model is allowed when an adapter is configured.
+
+The native Transformers loader uses the export's exact `model.language_model`
+keys; PEFT's automatic key conversion is disabled because each real target is
+checked explicitly. FP32 adapter weights remain FP32 even though the base model
+is BF16. Differences from the Unsloth training runtime can still affect numerical
+outputs; exact weight loading is stronger evidence than a successful HTTP response
+but does not imply bitwise logit parity across runtimes.
+
+## Loading another LoRA
 
 Set both `LORA_MODEL_ID=owner/private-adapter` and `LORA_REVISION=<40-char SHA>` in
 the inference deployment's secrets/configuration. `HF_TOKEN` may authorize that
 private repository. Only deployment configuration can select an adapter; request
 bodies cannot cause arbitrary checkpoint downloads. The adapter configuration
-must name `Qwen/Qwen3.5-4B` as its base. Responses append adapter ID/revision to
+must name `Qwen/Qwen3.5-4B` and its exact base revision. Set `LORA_SHA256` to pin
+the exported safetensors file checksum as well. Only finite FP32 LoRA-only exports
+without base modules are accepted. Responses append adapter ID/revision to
 `revision` and health metadata changes `fineTuned` to true. This records that an
 adapter was loaded, not what data trained it; data provenance remains a separate
 training requirement. The pinned base revision must also match the training run.
@@ -147,6 +189,10 @@ uv pip install --python inference/.venv/bin/python -r inference/requirements-dev
 cd inference
 .venv/bin/python -m pytest -q
 ```
+
+For the adapter loader's real CPU PEFT save/reload and byte-level regression tests,
+install `inference/requirements-adapter-test.txt` instead of the lightweight dev
+requirements. These tests use a tiny local linear model, not a downloaded 4B model.
 
 Tests inject an explicit in-memory engine; no production fake-model switch exists.
 They cover all-label selection, independent prompts, startup/auth failures,

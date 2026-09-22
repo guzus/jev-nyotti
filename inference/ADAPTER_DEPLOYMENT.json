@@ -1,0 +1,45 @@
+{
+  "verifiedDate": "2026-09-22",
+  "modalApp": "jev-nyotti",
+  "modalAppId": "ap-rbIRrUB8acCD6h5OZK0Iuz",
+  "url": "https://storminggalaxys4--jev-nyotti-api.modal.run",
+  "gpu": "L4",
+  "minContainers": 0,
+  "maxContainers": 1,
+  "scaledownWindowSeconds": 60,
+  "model": "Qwen/Qwen3.5-4B",
+  "baseRevision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+  "adapter": "guzus/jev-nyotti",
+  "adapterRevision": "73867def94f8b062700ad3f8d63128b4e1c9b1d4",
+  "adapterSha256": "918fdcd054e3d77116ddb7b708cc7c2a24aa443696f4639bd103408777051831",
+  "health": {
+    "ready": true,
+    "fineTuned": true,
+    "tensorCount": 496,
+    "dtype": "float32",
+    "nonzeroPairs": 248,
+    "exactWeightsVerified": true,
+    "active": true
+  },
+  "firstColdHealthWallMs": 134610.4,
+  "scoreSmoke": {
+    "fixture": "invented market and flat-position state; no user trading records",
+    "jobs": 1,
+    "options": 3,
+    "inputTokens": 241,
+    "allLogitsFinite": true,
+    "fullAdapterRevisionReturned": true,
+    "repeatedLogitsIdentical": true,
+    "runs": [
+      {"inferenceElapsedMs": 3454.829, "wallMs": 4846.5},
+      {"inferenceElapsedMs": 159.614, "wallMs": 1430.9}
+    ]
+  },
+  "localTestsPassed": 46,
+  "nativeArchitectureTargetsVerified": 248,
+  "limitations": [
+    "Deployment and synthetic smoke validation, not trading-quality or profitability evaluation.",
+    "Timings are two short 241-token requests after the first model load, not a latency distribution.",
+    "Exact tensor parity verified; Unsloth-versus-native-Transformers logit parity was not evaluated."
+  ]
+}

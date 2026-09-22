@@ -36,6 +36,7 @@ class QwenEngine:
         self.tokenizer: Any = None
         self.model: Any = None
         self.labels: list[Label] = []
+        self.adapter_verification: dict | None = None
 
     def load(self) -> None:
         import torch
@@ -60,19 +61,9 @@ class QwenEngine:
             trust_remote_code=False,
         )
         if self.settings.adapter_id:
-            from peft import PeftConfig, PeftModel
+            from .adapter import load_verified_adapter
 
-            adapter_config = PeftConfig.from_pretrained(
-                self.settings.adapter_id, revision=self.settings.adapter_revision,
-            )
-            if adapter_config.base_model_name_or_path != MODEL_ID:
-                raise RuntimeError("adapter base_model_name_or_path must match the selected Qwen model")
-            self.model = PeftModel.from_pretrained(
-                self.model,
-                self.settings.adapter_id,
-                revision=self.settings.adapter_revision,
-                is_trainable=False,
-            )
+            self.model, self.adapter_verification = load_verified_adapter(self.model, self.settings)
         self.model.eval()
 
     def prepare(self, jobs: list[Job]) -> list[PreparedJob]:
