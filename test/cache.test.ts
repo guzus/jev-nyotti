@@ -8,93 +8,137 @@ import { readConfig, type Config } from '../server/config.js';
 import { parseKraken } from '../server/market.js';
 import type { TradeRequest } from '../server/contracts.js';
 import type { Scorer } from '../server/provider.js';
+import { REFRESH_INTERVAL_MS,SCHEDULED_REQUESTS } from '../server/scheduler.js';
+import { Store } from '../server/store.js';
 
 const model='Qwen/Qwen3.5-4B';
 const key='test-only-not-a-deployed-secret-123456789';
 const query:TradeRequest={symbol:'BTCUSD',interval:15};
-const now=Date.UTC(2026,8,22,6,5);
-function market(q:TradeRequest,offset=0,close=101) {
-  const boundary=Math.floor((now+offset)/(q.interval*60000))*q.interval*60;
-  const rows=Array.from({length:101},(_,i)=>[boundary-(100-i)*q.interval*60,'100','102','99',String(close),'100','12',42]);
-  return parseKraken({error:[],result:{pair:rows,last:boundary}},q,now+offset);
+function market(q:TradeRequest,now:number) {
+  const boundary=Math.floor(now/(q.interval*60000))*q.interval*60;
+  const rows=Array.from({length:101},(_,i)=>[boundary-(100-i)*q.interval*60,'100','102','99','101','100','12',42]);
+  return parseKraken({error:[],result:{pair:rows,last:boundary}},q,now);
 }
-async function start(config:Config,scorer:Scorer,readMarket=(q:TradeRequest)=>Promise.resolve(market(q))) {
-  const {app,store}=createApp(config,{scorer,market:readMarket});
+function scores(jobs:Parameters<Scorer['score']>[0]) {
+  return {model,revision:'test-revision',elapsedMs:1,scores:jobs.map(j=>({logits:j.options.map((_,i)=>i),inputTokens:10}))};
+}
+async function start(config:Config,scorer:Scorer,now:()=>number,readMarket=(q:TradeRequest)=>Promise.resolve(market(q,now()))) {
+  const {app,store,scheduler}=createApp(config,{scorer,market:readMarket,now});
   const server=app.listen(0,'127.0.0.1');
   await new Promise<void>(resolve=>server.once('listening',resolve));
   const address=server.address();assert.ok(address&&typeof address!=='string');
   const base=`http://127.0.0.1:${address.port}`;
   return {
+    scheduler,store,
     async current(q=query) {
       const response=await fetch(`${base}/api/market?symbol=${q.symbol}&interval=${q.interval}`);
       assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
       return response.json();
     },
-    post:()=>fetch(base+'/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(query)}),
+    post:(q=query)=>fetch(base+'/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(q)}),
     share:(id:string)=>fetch(base+'/api/decisions/'+id),
-    async close() {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));store.close();},
+    async close() {await scheduler.stop();await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));store.close();},
   };
 }
+function config(directory:string):Config {return {...readConfig(),dataDir:directory,apiKey:key,dailyLimit:5000,modelRevision:'test-revision',scheduledAnalysisEnabled:true};}
 
-test('page views never infer; cache survives restart and quotas, with exact snapshot and model identity',async()=>{
-  const dir=mkdtempSync(join(tmpdir(),'jev-cache-'));
-  const config={...readConfig(),dataDir:dir,apiKey:key,dailyLimit:1,publicRate:1,modelRevision:'test-revision'};
-  let calls=0,offset=0,close=101;
-  const scorer:Scorer={configured:true,score:async jobs=>{
-    calls++;
-    return {model,revision:'test-revision',elapsedMs:1,scores:jobs.map(j=>({logits:j.options.map((_,i)=>i),inputTokens:10}))};
-  }};
-  const readMarket=async(q:TradeRequest)=>market(q,offset,close);
-  let service=await start(config,scorer,readMarket);
+test('all 30 slots schedule, unchanged candles reuse inference, cache survives restart and public reads never infer',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'jev-schedule-'));
+  let now=Date.UTC(2026,8,22,6,1),calls=0;
+  const scorer:Scorer={configured:true,score:async jobs=>{calls++;return scores(jobs);}};
+  let service=await start(config(dir),scorer,()=>now);
   try {
-    assert.equal((await service.current()).cachedDecision,null);assert.equal(calls,0);
-    const response=await service.post();assert.equal(response.status,200);
-    const original=await response.json();assert.equal(original.cached,false);assert.equal(calls,1);
-    const cached=await service.current();
-    assert.deepEqual(cached.cachedDecision,{...original,cached:true});
-    for(let i=0;i<4;i++) {
-      const hit=await service.post();assert.equal(hit.status,200);
-      assert.deepEqual(await hit.json(),{...original,cached:true});
-    }
-    assert.equal(calls,1);
-    assert.equal((await service.current({symbol:'ETHUSD',interval:15})).cachedDecision,null);
-    assert.equal((await service.current({symbol:'BTCUSD',interval:60})).cachedDecision,null);
-    close=100.5;assert.equal((await service.current()).cachedDecision,null);close=101;
-    offset=900000;assert.equal((await service.current()).cachedDecision,null);
-    assert.equal((await service.post()).status,429);assert.equal(calls,1);offset=0;
-    await service.close();
-    service=await start(config,{configured:false,score:async()=>{throw Error('cached reads must not score');}},readMarket);
-    assert.deepEqual((await service.current()).cachedDecision,{...original,cached:true});
+    const empty=await service.current();assert.equal(empty.cachedDecision,null);assert.equal(empty.cache.refreshIntervalMs,600000);
+    assert.equal((await service.post()).status,202);assert.equal(calls,0);
+    await service.scheduler.tick();assert.equal(calls,30);
+    const original=(await service.current()).cachedDecision;assert.equal(original.cached,true);
+    for(const q of SCHEDULED_REQUESTS)assert.ok(service.scheduler.view(q).cachedDecision);
+    for(let i=0;i<3;i++)assert.equal((await service.post()).status,200);
+    await service.scheduler.tick();assert.equal(calls,30);
+    now+=REFRESH_INTERVAL_MS;await service.scheduler.tick();assert.equal(calls,30); // 06:11: no new closed15m candle
+    assert.equal((await service.current()).cachedDecision.id,original.id);
+    now+=REFRESH_INTERVAL_MS;await service.scheduler.tick();assert.equal(calls,40); // 06:21: ten new15m snapshots
+    const current=(await service.current()).cachedDecision;assert.notEqual(current.id,original.id);
+    assert.deepEqual(await (await service.share(original.id)).json(),original);
+    await service.close();service=await start(config(dir),scorer,()=>now);
+    await service.scheduler.tick();assert.equal(calls,40);
+    assert.equal((await service.current()).cachedDecision.id,current.id);
     assert.equal((await service.post()).status,200);
-    assert.equal((await (await service.share(original.id)).json()).id,original.id);
-    await service.close();
-    service=await start({...config,modelRevision:'new-revision'},scorer,readMarket);
+    await service.close();service=await start({...config(dir),modelRevision:'new-revision'},scorer,()=>now);
     assert.equal((await service.current()).cachedDecision,null);
-    // Old shares remain addressable; they are never presented as a current-model cache hit.
+    assert.equal((await service.post()).status,202);assert.equal(calls,40);
     assert.equal((await (await service.share(original.id)).json()).revision,'test-revision');
-    await service.close();
-    service=await start({...config,trainingStatus:'fine_tuned'},scorer,readMarket);
-    assert.equal((await service.current()).cachedDecision,null);
-    assert.equal(calls,1);
   }finally{await service.close();rmSync(dir,{recursive:true,force:true});}
 });
 
-test('failed inference is not cached and an explicit retry can populate the cache',async()=>{
-  const dir=mkdtempSync(join(tmpdir(),'jev-cache-retry-'));
-  let calls=0;
-  const service=await start({...readConfig(),dataDir:dir,apiKey:key,dailyLimit:3,publicRate:60,modelRevision:'test-revision'},{
-    configured:true,score:async jobs=>{
-      calls++;
-      if(calls===1) throw Error('test inference failure');
-      return {model,revision:'test-revision',elapsedMs:1,scores:jobs.map(j=>({logits:j.options.map((_,i)=>i),inputTokens:10}))};
-    },
-  });
+test('failed refresh retains the previous result and market through restart and respects durable cooldown',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'jev-schedule-fail-'));
+  let now=Date.UTC(2026,8,22,6,1),calls=0,modelFails=false,marketFails=false;
+  const scorer:Scorer={configured:true,score:async jobs=>{calls++;if(modelFails)throw Error('test model failure');return scores(jobs);}};
+  const read=async(q:TradeRequest)=>{if(marketFails)throw Error('test market failure');return market(q,now);};
+  let service=await start(config(dir),scorer,()=>now,read);
   try {
-    assert.equal((await service.post()).status,500);
-    assert.equal((await service.current()).cachedDecision,null);
-    const retried=await service.post();assert.equal(retried.status,200);
-    const decision=await retried.json();assert.equal(calls,2);
-    assert.equal((await service.current()).cachedDecision.id,decision.id);
-    assert.equal((await service.post()).status,200);assert.equal(calls,2);
+    await service.scheduler.tick();const original=(await service.current()).cachedDecision;
+    now+=2*REFRESH_INTERVAL_MS;modelFails=true;
+    await service.scheduler.tick();assert.equal(calls,40);
+    let stale=await service.current();assert.equal(stale.cachedDecision.id,original.id);assert.ok(stale.cache.error);
+    assert.equal(stale.cache.nextRefreshAt,new Date(now+REFRESH_INTERVAL_MS).toISOString());
+    await service.close();service=await start(config(dir),scorer,()=>now,read);
+    await service.scheduler.tick();assert.equal(calls,40);
+    marketFails=true;stale=await service.current();assert.equal(stale.cachedDecision.id,original.id);assert.ok(stale.candles.length);
+    assert.equal((await service.post()).status,200);assert.equal(calls,40);
+    now+=REFRESH_INTERVAL_MS;modelFails=false;marketFails=false;await service.scheduler.tick();
+    assert.equal(calls,50);assert.equal((await service.current()).cache.error,null);
   }finally{await service.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('worker coalesces concurrent ticks and persisted lease excludes another process; stop prevents further slots',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'jev-schedule-concurrency-'));
+  const now=Date.UTC(2026,8,22,6,1);
+  let calls=0,release!:()=>void;
+  const gate=new Promise<void>(resolve=>{release=resolve;});
+  const scorer:Scorer={configured:true,score:async jobs=>{calls++;await gate;return scores(jobs);}};
+  const first=await start(config(dir),scorer,()=>now);
+  const second=await start(config(dir),scorer,()=>now);
+  try {
+    const one=first.scheduler.tick(),two=first.scheduler.tick();
+    await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,1);
+    await second.scheduler.tick();assert.equal(calls,1);
+    assert.equal((await first.current()).cache.refreshing,true);
+    assert.equal((await first.post()).status,202);assert.equal(calls,1);
+    const stopping=first.scheduler.stop();release();await Promise.all([one,two,stopping]);
+    assert.equal(calls,1);await first.scheduler.tick();assert.equal(calls,1);
+    await second.scheduler.tick();assert.equal(calls,30);
+  }finally{release();await first.close();await second.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('quota failures do not discard cached decisions or allow visitors to bypass budget',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'jev-schedule-quota-'));
+  let now=Date.UTC(2026,8,22,6,1),calls=0;
+  const service=await start({...config(dir),dailyLimit:1},{configured:true,score:async jobs=>{calls++;return scores(jobs);}},()=>now);
+  try {
+    await service.scheduler.tick();assert.equal(calls,1);
+    const original=(await service.current()).cachedDecision;
+    assert.equal((await service.post({symbol:'ETHUSD',interval:15})).status,202);
+    now+=2*REFRESH_INTERVAL_MS;await service.scheduler.tick();assert.equal(calls,1);
+    const current=await service.current();assert.equal(current.cachedDecision.id,original.id);assert.match(current.cache.error,/한도/);
+    assert.equal((await service.post()).status,200);assert.equal(calls,1);
+    now=Date.UTC(2026,8,23,0,1);await service.scheduler.tick();assert.equal(calls,2);
+  }finally{await service.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('abandoned durable leases and cooldown survive restart before eventual recovery',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'jev-schedule-lease-'));
+  let store=new Store(dir);
+  try {
+    store.ensureSchedule('slot',query,1000);
+    assert.equal(store.acquireWorker('old',1000,200000),true);
+    assert.ok(store.claimSchedule(['slot'],1000,200000,600000));
+    store.close();store=new Store(dir);
+    assert.equal(store.acquireWorker('new',2000,200000),false);
+    assert.equal(store.claimSchedule(['slot'],2000,200000,600000),null);
+    assert.equal(store.acquireWorker('new',201000,200000),true);
+    assert.equal(store.claimSchedule(['slot'],201000,200000,600000),null);
+    assert.ok(store.claimSchedule(['slot'],601000,200000,600000));
+  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });

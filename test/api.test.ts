@@ -75,11 +75,11 @@ test('daily budget remains enforced after restart and cannot partially reserve b
   }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
 
-test('API requires auth, validates model, coalesces public analyses, persists shares, and limits paid calls',async()=>{
+test('API requires auth, validates model, serves scheduled analyses, persists shares, and limits paid calls',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'jev-api-'));
   let calls=0;
-  const config={...readConfig(),dataDir:dir,apiKey:key,dailyLimit:2,publicRate:1,modelRevision:'test-revision'};
-  const {app,store}=createApp(config,{
+  const config={...readConfig(),dataDir:dir,apiKey:key,dailyLimit:2,publicRate:1,modelRevision:'test-revision',scheduledAnalysisEnabled:true,gaMeasurementId:'G-TEST123'};
+  const {app,store,scheduler}=createApp(config,{
     market:async q=>parseKraken(marketFixture(),q),
     scorer:{configured:true,score:async jobs=>{calls++;await new Promise(r=>setTimeout(r,15));return {model,revision:'test-revision',elapsedMs:1,scores:jobs.map(j=>({logits:j.options.map((_,i)=>i),inputTokens:10}))};}},
   });
@@ -96,19 +96,24 @@ test('API requires auth, validates model, coalesces public analyses, persists sh
     const response=await post('/v1/systemone',request);assert.equal(response.status,200);
     const body=await response.json();assert.equal(body.model,model);assert.equal(body.answers.direction.choice,'hold');assert.equal(body.usage.input_tokens,10);assert.equal(body.usage.output_tokens,0);
     const payload={symbol:'BTCUSD',interval:15};
+    assert.equal((await post('/api/analyze',payload,false)).status,202);assert.equal(calls,1);
+    await scheduler.tick();
     const results=await Promise.all([post('/api/analyze',payload,false),post('/api/analyze',payload,false)]);
     const decisions=await Promise.all(results.map(async r=>{assert.equal(r.status,200);return r.json();}));
     assert.equal(decisions[0].id,decisions[1].id);assert.equal(calls,2);
-    assert.deepEqual(decisions.map(d=>d.cached).sort(),[false,true]);
+    assert.deepEqual(decisions.map(d=>d.cached),[true,true]);
     const market=await (await fetch(base+'/api/market?symbol=BTCUSD&interval=15')).json();
     assert.equal(market.cachedDecision.id,decisions[0].id);assert.equal(market.cachedDecision.cached,true);
     assert.equal((await (await fetch(base+'/api/decisions/'+decisions[0].id)).json()).action,'hold');
     assert.equal((await post('/api/analyze',payload,false)).status,200);assert.equal(calls,2);
-    assert.equal((await post('/api/analyze',{symbol:'ETHUSD',interval:15},false)).status,429);assert.equal(calls,2);
+    assert.equal((await post('/api/analyze',{symbol:'ETHUSD',interval:15},false)).status,202);assert.equal(calls,2);
     const apiCached=await post('/v1/trading/decisions',payload);
     assert.equal(apiCached.status,200);assert.equal((await apiCached.json()).id,decisions[0].id);assert.equal(calls,2);
     assert.equal((await post('/v1/systemone',request)).status,429);assert.equal(calls,2);
     assert.equal((await fetch(base+'/v1/chat/completions')).status,404);
+    const statusResponse=await fetch(base+'/api/status');const status=await statusResponse.json();
+    assert.equal(status.gaMeasurementId,'G-TEST123');assert.equal(status.scheduledAnalysisEnabled,true);
+    assert.ok((statusResponse.headers.get('content-security-policy')??'').includes('https://www.googletagmanager.com'));
     const schema=await (await fetch(base+'/openapi.json')).json();assert.ok(schema.paths['/v1/systemone']);
   }finally{await new Promise<void>((r,e)=>server.close(x=>x?e(x):r()));store.close();rmSync(dir,{recursive:true,force:true});}
 });
@@ -122,4 +127,18 @@ test('unconfigured model reports unavailable and never returns a fabricated deci
     const response=await fetch(`http://127.0.0.1:${address.port}/v1/systemone`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${key}`},body:JSON.stringify(request)});
     assert.equal(response.status,503);assert.equal((await response.json()).error.code,'model_unconfigured');
   }finally{await new Promise<void>(r=>server.close(()=>r()));store.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('analytics ID and scheduled-worker opt-in configuration reject invalid values',()=>{
+  const oldGa=process.env.GA_MEASUREMENT_ID,oldScheduled=process.env.SCHEDULED_ANALYSIS_ENABLED;
+  try {
+    process.env.GA_MEASUREMENT_ID='G-LQLNM6WNZK';process.env.SCHEDULED_ANALYSIS_ENABLED='true';
+    assert.equal(readConfig().gaMeasurementId,'G-LQLNM6WNZK');assert.equal(readConfig().scheduledAnalysisEnabled,true);
+    process.env.GA_MEASUREMENT_ID='G-<script>';assert.throws(()=>readConfig(),/GA_MEASUREMENT_ID/);
+    process.env.GA_MEASUREMENT_ID='';process.env.SCHEDULED_ANALYSIS_ENABLED='yes';assert.throws(()=>readConfig(),/SCHEDULED_ANALYSIS_ENABLED/);
+    delete process.env.SCHEDULED_ANALYSIS_ENABLED;assert.equal(readConfig().scheduledAnalysisEnabled,false);assert.equal(readConfig().gaMeasurementId,null);
+  }finally {
+    if(oldGa===undefined)delete process.env.GA_MEASUREMENT_ID;else process.env.GA_MEASUREMENT_ID=oldGa;
+    if(oldScheduled===undefined)delete process.env.SCHEDULED_ANALYSIS_ENABLED;else process.env.SCHEDULED_ANALYSIS_ENABLED=oldScheduled;
+  }
 });

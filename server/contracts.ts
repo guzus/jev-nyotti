@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+// Bump whenever public analysis prompts, task semantics or feature definitions change.
+export const ANALYSIS_CACHE_VERSION=1;
+
 const jsonContent = z.union([z.string().max(24000), z.array(z.unknown()), z.record(z.string(), z.unknown())]);
 const key = z.string().min(1).max(128);
 export const questionSchema = z.discriminatedUnion('type', [

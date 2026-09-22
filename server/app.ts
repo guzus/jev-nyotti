@@ -4,21 +4,22 @@ import { createHash,createHmac,randomUUID,timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import type { Config } from './config.js';
-import { systemOneSchema,tradeSchema,type Decision,type SystemOneRequest,type TradeRequest } from './contracts.js';
+import { ANALYSIS_CACHE_VERSION,systemOneSchema,tradeSchema,type Decision,type SystemOneRequest,type TradeRequest } from './contracts.js';
 import { assembleResponse,jobsFor } from './classifier.js';
 import { ApiError } from './errors.js';
 import { createMarketReader,type Market } from './market.js';
 import { createScorer,type Scorer } from './provider.js';
 import { Store } from './store.js';
+import { createScheduler } from './scheduler.js';
 
-export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market?:(q:TradeRequest)=>Promise<Market>}={}) {
+export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market?:(q:TradeRequest)=>Promise<Market>;now?:()=>number}={}) {
   const store=deps.store??new Store(config.dataDir);
   const scorer=deps.scorer??createScorer(config);
   const readMarket=deps.market??createMarketReader();
   const app=express();
   app.disable('x-powered-by');
   app.set('trust proxy',config.trustProxy);
-  app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],imgSrc:["'self'",'data:'],fontSrc:["'self'"],connectSrc:["'self'"],frameAncestors:["'none'"],upgradeInsecureRequests:process.env.NODE_ENV==='production'?[]:null}}}));
+  app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'",'https://www.googletagmanager.com'],styleSrc:["'self'","'unsafe-inline'"],imgSrc:["'self'",'data:','https://*.google-analytics.com','https://*.googletagmanager.com'],fontSrc:["'self'"],connectSrc:["'self'",'https://*.google-analytics.com','https://*.analytics.google.com','https://*.googletagmanager.com','https://*.google.com'],frameAncestors:["'none'"],upgradeInsecureRequests:process.env.NODE_ENV==='production'?[]:null}}}));
   app.use(express.json({limit:'64kb',strict:true}));
   app.use((_req,res,next)=>{res.setHeader('X-Request-Id',randomUUID());next();});
   const keyHash=createHash('sha256').update(config.apiKey).digest();
@@ -45,7 +46,7 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     if(request.model!==config.modelId) throw new ApiError(422,'unsupported_model',`사용 가능한 모델: ${config.modelId}`);
     if(!scorer.configured) throw new ApiError(503,'model_unconfigured','모델 서버 연결을 준비하고 있습니다. 시장 데이터는 확인할 수 있습니다.');
     if(active>=2) throw new ApiError(529,'model_busy','모델이 다른 요청을 처리하고 있습니다. 잠시 후 다시 시도해 주세요.');
-    store.reserveEvaluations(Object.keys(request.questions).length,config.dailyLimit);
+    store.reserveEvaluations(Object.keys(request.questions).length,config.dailyLimit,(deps.now??Date.now)());
     active++;
     try {
       const raw=await scorer.score(jobsFor(request));
@@ -57,15 +58,14 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
   const decisionsInFlight=new Map<string,Promise<Decision>>();
   function decisionCacheKey(request:TradeRequest,market:Market) {
     // Bump version when the analysis prompt or feature definitions change.
-    return createHash('sha256').update(JSON.stringify({version:1,model:config.modelId,revision:config.modelRevision,training:config.trainingStatus,request,asOf:market.asOf,candles:market.candles})).digest('hex');
+    return createHash('sha256').update(JSON.stringify({version:ANALYSIS_CACHE_VERSION,model:config.modelId,revision:config.modelRevision,training:config.trainingStatus,request,asOf:market.asOf,candles:market.candles})).digest('hex');
   }
-  async function analyze(request:TradeRequest,beforeInference:()=>void):Promise<Decision> {
-    const market=await readMarket(request);
+  async function analyze(request:TradeRequest,saveMarket:(market:Market)=>void):Promise<Decision> {
+    const market=await readMarket(request);saveMarket(market);
     const cacheKey=decisionCacheKey(request,market);
     const cached=store.getCached(cacheKey);if(cached)return cached;
     const pending=decisionsInFlight.get(cacheKey);if(pending)return {...await pending,cached:true};
     const task=(async()=>{
-      beforeInference();
       const started=performance.now();
       const result=await evaluate({
         model:config.modelId,
@@ -91,18 +91,32 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     try{return await task;}finally{decisionsInFlight.delete(cacheKey);}
   }
 
+  const scheduler=createScheduler(config,store,analyze,deps.now);
+
   app.get('/healthz',(_req,res)=>res.json({status:'ok',service:'jev-trading-gateway'}));
   app.get('/api/status',(_req,res)=>res.json({model:config.modelId,revision:config.modelRevision,trainingStatus:config.trainingStatus,
     providerConfigured:scorer.configured,apiAuthRequired:true,inferenceMode:scorer.configured?'live':'unconfigured',
-    scoreSemantics:'uncalibrated_model_relative_likelihood',executionEnabled:false}));
+    scoreSemantics:'uncalibrated_model_relative_likelihood',executionEnabled:false,gaMeasurementId:config.gaMeasurementId,scheduledAnalysisEnabled:config.scheduledAnalysisEnabled}));
   app.get('/api/market',limit('market',60),async(req,res)=>{
     const q=tradeSchema.parse({symbol:req.query.symbol,interval:Number(req.query.interval)});
-    const market=await readMarket(q);
-    // A page view only reads SQLite; it must never wake the GPU on a cache miss.
-    res.setHeader('Cache-Control','no-store');res.json({...market,cachedDecision:store.getCached(decisionCacheKey(q,market))});
+    // Market reads may refresh free candles, but only the worker may run public inference.
+    const cached=scheduler.view(q);
+    let market:Market;
+    let marketError:string|null=null;
+    try {market=await readMarket(q);scheduler.saveMarket(q,market);}
+    catch(error) {
+      if(!cached.market)throw error;
+      market=cached.market;
+      marketError=error instanceof ApiError?error.message:'시세 갱신에 실패해 저장된 시장 데이터를 표시합니다.';
+    }
+    const latest=scheduler.view(q);
+    res.setHeader('Cache-Control','no-store');res.json({...market,cachedDecision:latest.cachedDecision,
+      cache:{...latest.cache,error:marketError??latest.cache.error}});
   });
   app.post('/api/analyze',limit('analyze-read',120),async(req,res)=>{
-    res.setHeader('Cache-Control','no-store');res.json(await analyze(tradeSchema.parse(req.body),()=>consumeRate(req,'analyze',config.publicRate)));
+    res.setHeader('Cache-Control','no-store');const cached=scheduler.view(tradeSchema.parse(req.body));
+    if(cached.cachedDecision)return res.json(cached.cachedDecision);
+    res.status(202).json({status:'pending',cachedDecision:null,cache:cached.cache});
   });
   app.get('/api/decisions/:id',limit('read',120),(req,res)=>{
     const id=z.uuid().safeParse(req.params.id);
@@ -120,7 +134,9 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     res.json(await evaluate(body));
   });
   app.post('/v1/trading/decisions',auth,limit('trading-read',120),async(req,res)=>{
-    res.setHeader('Cache-Control','no-store');res.json(await analyze(tradeSchema.parse(req.body),()=>consumeRate(req,'trading',30)));
+    res.setHeader('Cache-Control','no-store');const cached=scheduler.view(tradeSchema.parse(req.body));
+    if(cached.cachedDecision)return res.json(cached.cachedDecision);
+    res.status(202).json({status:'pending',cachedDecision:null,cache:cached.cache});
   });
   app.get('/openapi.json',(_req,res)=>res.json({
     openapi:'3.1.0',info:{title:'jev뇨띠 — Qwen TypeSafe-compatible API',version:'0.1.0',description:'TypeSafe wire-format compatibility using Qwen logits. No TypeSafe model weights or calibration. Choice/score confidence = 1 − normalized entropy. Maximum 8 independent questions; input token limit enforced by model service. No order execution.'},
@@ -128,7 +144,7 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}},schemas:{SystemOne:z.toJSONSchema(systemOneSchema),TradingRequest:z.toJSONSchema(tradeSchema)}},
     paths:{
       '/v1/systemone':{post:{operationId:'systemOne',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/SystemOne'}}}},responses:{'200':{description:'TypeSafe answers: choice / score / noul, usage and score semantics metadata'},'401':{description:'Invalid API key'},'422':{description:'Invalid request / model / token limit'},'429':{description:'Rate or daily quota exceeded'},'503':{description:'Model unavailable'},'529':{description:'At capacity'}}}},
-      '/v1/trading/decisions':{post:{operationId:'tradingDecision',description:'Reuses the persisted result for identical closed candles, symbol, interval, model revision and prompt version. Concurrent identical requests share one inference. Cache hits retain the original id, generatedAt, marketAsOf and latencyMs, set cached=true and consume no inference quota. New snapshots require explicit requests; there is no background inference.',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/TradingRequest'}}}},responses:{'200':{description:'Stored research stance from actual closed Kraken candles'},'429':{description:'Request or new-inference quota exceeded'},'503':{description:'Market or model unavailable'}}}},
+      '/v1/trading/decisions':{post:{operationId:'tradingDecision',description:'Reuses the persisted result for identical closed candles, symbol, interval, model revision and prompt version. Concurrent identical requests share one inference. Cache hits retain the original id, generatedAt, marketAsOf and latencyMs, set cached=true and consume no inference quota. A serial background worker checks all displayed markets every ten minutes. Public and trading-decision requests only read the latest result and cannot start inference. A cache miss returns 202 pending; failed refreshes retain the previous result.',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/TradingRequest'}}}},responses:{'200':{description:'Latest stored research stance from actual closed Kraken candles'},'202':{description:'Scheduled analysis pending; no visitor-triggered inference'},'429':{description:'Request or new-inference quota exceeded'},'503':{description:'Market or model unavailable'}}}},
       '/v1/models':{get:{operationId:'listModels',security:[{bearerAuth:[]}],responses:{'200':{description:'Actual configured model identity'}}}},
     },
   }));
@@ -144,5 +160,5 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     console.error(JSON.stringify({event:'request_failed',error:error instanceof Error?error.name:'unknown'}));
     res.status(500).json({error:{code:'internal_error',message:'요청을 처리하지 못했습니다.'}});
   });
-  return {app,store};
+  return {app,store,scheduler};
 }

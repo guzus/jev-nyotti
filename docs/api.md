@@ -44,11 +44,21 @@ Public analysis takes only a fixed symbol/interval and server-owned prompt. No A
 
 `/?decision=<uuid>` resolves the original persisted output, market cutoff and model revision without re-running inference. Shares expire after 30 days. Cached outputs retain original timestamps. Long/short/hold are hypothetical directions inferred from spot candles, not executable orders.
 
-`GET /api/market?symbol=BTCUSD&interval=15` includes `cachedDecision` (a persisted decision with `cached: true`, or `null`). This lookup never invokes the model. The frontend restores that result on ordinary page loads and market changes; explicit share links retain their original result. All market responses use `Cache-Control: no-store` so browsers do not substitute an outdated snapshot.
+`GET /api/market?symbol=BTCUSD&interval=15` includes `cachedDecision` (the latest persisted decision for the selected symbol/interval and configured model/revision/training status, with `cached: true`, or `null`) and:
 
-`POST /api/analyze` and authenticated `POST /v1/trading/decisions` reuse the same SQLite cache. Keys include symbol, interval, the full closed-candle snapshot, cutoff, model identity/revision, training status and prompt version. Identical concurrent requests share a single inference. New or corrected candles and changed model revisions miss the cache; no background refresh or inference is scheduled. Preserve the Railway `/data` volume across deploys.
+```json
+{"cache":{"refreshIntervalMs":600000,"checkedAt":null,"nextRefreshAt":null,"refreshing":false,"error":null}}
+```
 
-Hits preserve `id`, `generatedAt`, `marketAsOf`, scores and `latencyMs`, and set `cached: true`. `latencyMs` always means the **original inference duration**, not cache retrieval time. Hits and in-flight followers do not consume the daily model budget or per-IP new-analysis allowance. General request limits still apply (120 analysis requests/IP/minute, 60 market reads/IP/minute). Cache misses still require an available model and quota; errors are never saved as decisions. `/v1/systemone` is unchanged and is not cached.
+`checkedAt` is the most recent completed refresh attempt, including failed attempts. `nextRefreshAt` is the scheduled next check (or outstanding lease expiry when later), not a guarantee that inference will finish then; a busy serial queue can lag. It is `null` when scheduling is disabled. `refreshing` reflects the persisted in-progress lease. `error` contains the latest refresh or current market-fetch error. A failed refresh retains the last decision, whose `marketAsOf` and `generatedAt` remain unchanged. If the market provider fails, the endpoint serves the last persisted candle snapshot when available. First use with no market snapshot may still return an upstream error. All responses use `Cache-Control: no-store`.
+
+With `SCHEDULED_ANALYSIS_ENABLED=true`, one durable background worker checks the ten displayed coins × 15/60/240-minute intervals every ten minutes. SQLite persists due times, cooldowns and worker leases across deploys; one inference runs at a time and crashed jobs wait for their lease/cooldown before recovery. Identical snapshots reuse the saved result. Cache keys include the full closed-candle snapshot, cutoff, model identity/revision, training status and prompt version. Preserve the Railway `/data` volume.
+
+`POST /api/analyze` and authenticated `POST /v1/trading/decisions` are cache reads only. They return a stored Decision with HTTP 200, or HTTP 202 with `{"status":"pending","cachedDecision":null,"cache":{...}}`. Neither route wakes the GPU, advances the queue or bypasses a cooldown/quota. Historical shares remain immutable even when the current model changes. Older symbols retained for share compatibility are not added to the thirty-slot schedule.
+
+Hits preserve `id`, `generatedAt`, `marketAsOf`, scores and `latencyMs`, and set `cached: true`. `latencyMs` means the **original inference duration**, not cache retrieval time. Reads consume no model budget; HTTP limits remain 120 analysis requests/IP/minute and 60 market reads/IP/minute. The worker reserves daily quota before a model call; failures count conservatively and are never saved as decisions. Authenticated `/v1/systemone` is unchanged, uncached, and shares the daily model budget.
+
+`GET /api/status` additionally exposes `scheduledAnalysisEnabled` and optional `gaMeasurementId` (`null` when unset). The latter is validated as `G-` plus uppercase alphanumerics. CSP permits GA4's script and collection origins, without enabling advertising frames.
 
 Supported USD markets: `BTCUSD`, `ETHUSD`, `SOLUSD`, `XRPUSD`, `DOGEUSD`, `ADAUSD`, `AVAXUSD`, `LINKUSD`, `DOTUSD`, `LTCUSD`, `BNBUSD`, `SUIUSD`, `NEARUSD`, `PEPEUSD`, `ZECUSD`. Intervals remain 15, 60 and 240 minutes. Dogecoin uses Kraken’s `XDGUSD` market internally; clients always use `DOGEUSD`. All markets share the existing cache, quota and closed-candle validation rules.
 

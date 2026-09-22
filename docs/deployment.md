@@ -25,7 +25,9 @@ RAILWAY_RUN_UID=0
 MODEL_ID=Qwen/Qwen3.5-4B
 MODEL_REVISION=851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
 MODEL_TRAINING_STATUS=base
-MAX_DAILY_EVALUATIONS=100
+MAX_DAILY_EVALUATIONS=5000
+SCHEDULED_ANALYSIS_ENABLED=true
+GA_MEASUREMENT_ID=G-LQLNM6WNZK
 PUBLIC_REQUESTS_PER_MINUTE=3
 INFERENCE_TIMEOUT_MS=180000
 TRUST_PROXY_HOPS=1
@@ -38,7 +40,7 @@ MODAL_PROXY_SECRET=<proxy secret>
 
 Railway volumes are root-owned. The image defaults to `USER node`; the Railway override above permits the initial bootstrap only. `server/bootstrap.ts` creates/chowns the data directory, clears supplementary groups and irreversibly drops GID/UID to 1000 before loading the server. A real Docker test confirmed all real/effective/saved UID/GID values in `/proc/1/status` were 1000, the SQLite files belonged to node, and health succeeded. Never replace the bootstrap with a root HTTP entrypoint.
 
-Quotas count classification questions, reserve before calls, persist across deploys and reset at UTC midnight. The IP limiter trusts one Railway edge proxy and stores HMAC identifiers. Cached analyses and followers of an in-flight analysis do not consume GPU quota or the per-IP new-analysis allowance. General HTTP read limits remain in place. Page views restore only an exact cached snapshot and never start inference. These are usage controls, not a dollar cap; Modal account budgets are separate.
+Quotas count classification questions, reserve before calls, persist across deploys and reset at UTC midnight. The IP limiter trusts one Railway edge proxy and stores HMAC identifiers. The opt-in scheduled worker checks thirty symbol/interval slots every ten minutes and reuses identical closed candles. Public analysis routes and page views only read the latest same-model result; they cannot trigger GPU calls. General HTTP read limits remain in place. Failed refreshes retain the prior decision and market snapshot. Scheduling defaults to disabled for local development; production explicitly enables it. Due times, failure cooldowns and single-worker leases persist in SQLite, so redeploying does not reset the queue. The worker is serial and may run behind its target interval during slow model calls. These are usage controls, not a dollar cap; Modal account budgets are separate.
 
 ## Verify, rollback and stop
 
@@ -46,6 +48,6 @@ Verify Railway SUCCESS, gateway health, actual identity, an authenticated full d
 
 If inference fails, inspect Modal logs, revision and both auth layers. Never substitute mock predictions. If Railway startup fails, inspect Node version and volume permissions. Preserve the volume on redeploy; replacing it resets quotas and shares. Volumes preclude multiple active replicas and cause brief redeploy downtime.
 
-Rollback Railway to the prior verified Git commit and redeploy the prior inference code with `modal deploy`. Verify a new checkpoint before changing the gateway revision; mismatches fail closed. Cache keys include revision and prompt version. To halt GPU usage: `modal app stop jev-qwen-35-4b`. The site then reports unavailable inference. Model-cache storage can remain billable.
+Rollback Railway to the prior verified Git commit and redeploy the prior inference code with `modal deploy`. Verify a new checkpoint before changing the gateway revision; mismatches fail closed. Cache keys include revision and prompt version. To pause automatic analysis, set `SCHEDULED_ANALYSIS_ENABLED=false` and redeploy Railway; cached results remain readable. Authenticated `/v1/systemone` still permits explicitly requested inference. To halt all GPU usage, stop the active inference app in Modal. Shutdown stops claiming new slots and waits for the active call; forced termination leaves a persisted lease/cooldown for recovery. Model-cache storage can remain billable.
 
 Fine-tuning requires the real licensed dataset and time-split validation. Only after verified LoRA deployment should gateway revision/provenance and `MODEL_TRAINING_STATUS` change. See `inference/README.md`.

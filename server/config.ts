@@ -28,7 +28,12 @@ export function readConfig() {
   const modelId = process.env.MODEL_ID ?? 'Qwen/Qwen3.5-4B';
   const modelRevision = process.env.MODEL_REVISION ?? 'base';
   if (trainingStatus === 'fine_tuned' && modelRevision === 'base') throw new Error('Fine-tuned model requires a revision identifier');
+  const gaMeasurementId=process.env.GA_MEASUREMENT_ID??'';
+  if(gaMeasurementId&&!/^G-[A-Z0-9]+$/.test(gaMeasurementId))throw new Error('Invalid GA_MEASUREMENT_ID');
+  const scheduled=process.env.SCHEDULED_ANALYSIS_ENABLED??'false';
+  if(!['true','false'].includes(scheduled))throw new Error('Invalid SCHEDULED_ANALYSIS_ENABLED');
   return {
+    gaMeasurementId:gaMeasurementId||null,scheduledAnalysisEnabled:scheduled==='true',
     port: integer('PORT', 3000, 1, 65535), dataDir: resolve(process.env.DATA_DIR ?? '.runtime'),
     apiKey, inferenceUrl, inferenceKey, modalKey, modalSecret, modelId, modelRevision, trainingStatus: trainingStatus as 'base'|'fine_tuned',
     dailyLimit: integer('MAX_DAILY_EVALUATIONS', 300, 1, 10000),
