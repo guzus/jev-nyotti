@@ -1,25 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  ArrowDownLeft, ArrowRight, ArrowUpRight, Clock3, Copy, Link2, LoaderCircle,
-  Minus, RefreshCw, Sparkles,
+  ArrowDownLeft, ArrowUpRight, Clock3, Copy, Link2, LoaderCircle,
+  Minus, RefreshCw,
 } from 'lucide-react';
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import './styles.css';
+import { startAnalytics } from './analytics.js';
 
 type SymbolCode = import('../server/contracts.js').TradeRequest['symbol'];
 type Interval = 15 | 60 | 240;
 type Action = 'long' | 'short' | 'hold';
 type Status = {
   model: string; trainingStatus: 'base'; providerConfigured: boolean;
-  apiAuthRequired: boolean; inferenceMode: 'live' | 'unconfigured';
+  apiAuthRequired: boolean; inferenceMode: 'live' | 'unconfigured'; gaMeasurementId?: string | null;
 };
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type Market = {
   symbol: SymbolCode; interval: Interval; source: string; asOf: string; fetchedAt: string;
   cachedDecision: Decision | null;
+  cache: { refreshIntervalMs: number; checkedAt: string | null; nextRefreshAt: string | null; refreshing: boolean; error: string | null };
   candles: Candle[];
   features: { lastClose: number; changePct: number; rsi14: number | null; volatilityPct: number | null; volumeRatio: number | null };
 };
@@ -112,10 +114,9 @@ function App() {
   const [refresh, setRefresh] = useState(0);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [decisionError, setDecisionError] = useState('');
-  const [analyzing, setAnalyzing] = useState(false);
+  const [shared, setShared] = useState(() => new URLSearchParams(window.location.search).has('decision'));
   const [sharedLoading, setSharedLoading] = useState(false);
   const [copyState, setCopyState] = useState('');
-  const analyzeAbort = useRef<AbortController | null>(null);
   const sharedAbort = useRef<AbortController | null>(null);
   const asset = [...ASSETS, ...LEGACY_ASSETS].find((item) => item.symbol === symbol)!;
 
@@ -123,7 +124,7 @@ function App() {
     const controller = new AbortController();
     setStatusError('');
     request<Status>('/api/status', { signal: controller.signal }).then((data) => {
-      if (!controller.signal.aborted) setStatus(data);
+      if (!controller.signal.aborted) { setStatus(data); startAnalytics(data.gaMeasurementId); }
     }).catch((error) => {
       if (!controller.signal.aborted) { setStatus(null); setStatusError(error.message); }
     });
@@ -132,19 +133,27 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setMarketLoading(true); setMarketError(''); setMarket(null);
-    if (!new URLSearchParams(window.location.search).has('decision')) setDecision(null);
-    request<Market>(`/api/market?symbol=${symbol}&interval=${interval}`, { signal: controller.signal }).then((data) => {
-      if (!controller.signal.aborted) {
-        setMarket(data);
-        // Explicit share links keep their original snapshot instead of being replaced by today's cache.
-        if (!new URLSearchParams(window.location.search).has('decision')) setDecision(data.cachedDecision);
+    let polling: ReturnType<typeof window.setTimeout>;
+    async function load(first = false) {
+      if (first) setMarketLoading(true);
+      try {
+        const data = await request<Market>(`/api/market?symbol=${symbol}&interval=${interval}`, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        setMarket(data); setMarketError('');
+        // A shared URL is an immutable historical result, even as the chart updates.
+        if (!shared) setDecision(data.cachedDecision);
+      } catch (error) {
+        if (!controller.signal.aborted) setMarketError(error instanceof Error ? error.message : '시세를 불러오지 못했어요.');
+      } finally {
+        if (!controller.signal.aborted) {
+          setMarketLoading(false);
+          polling = window.setTimeout(() => { void load(); }, 30000);
+        }
       }
-    }).catch((error) => {
-      if (!controller.signal.aborted) setMarketError(error.message);
-    }).finally(() => { if (!controller.signal.aborted) setMarketLoading(false); });
-    return () => controller.abort();
-  }, [symbol, interval, refresh]);
+    }
+    void load(true);
+    return () => { controller.abort(); window.clearTimeout(polling); };
+  }, [symbol, interval, refresh, shared]);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('decision');
@@ -159,30 +168,19 @@ function App() {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => () => analyzeAbort.current?.abort(), []);
 
   function changeMarket(nextSymbol: SymbolCode, nextInterval: Interval) {
     if (nextSymbol === symbol && nextInterval === interval) return;
-    analyzeAbort.current?.abort(); sharedAbort.current?.abort();
-    setAnalyzing(false); setSharedLoading(false); setDecision(null); setDecisionError(''); setCopyState('');
+    sharedAbort.current?.abort();
+    setShared(false); setSharedLoading(false); setMarket(null); setDecision(null); setDecisionError(''); setCopyState('');
     setSymbol(nextSymbol); setInterval(nextInterval);
     const url = new URL(window.location.href); url.searchParams.delete('decision'); window.history.replaceState(null, '', url);
   }
 
-  async function analyze() {
-    analyzeAbort.current?.abort();
-    const controller = new AbortController(); analyzeAbort.current = controller;
-    setAnalyzing(true); setDecisionError(''); setCopyState('');
-    try {
-      const data = await request<Decision>('/api/analyze', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol, interval }), signal: controller.signal,
-      });
-      if (!controller.signal.aborted) {
-        setDecision(data);
-        const url = new URL(window.location.href); url.searchParams.set('decision', data.id); window.history.replaceState(null, '', url);
-      }
-    } catch (error) { if (!controller.signal.aborted) setDecisionError(error instanceof Error ? error.message : '분석을 완료하지 못했어요.'); }
-    finally { if (!controller.signal.aborted) setAnalyzing(false); }
+  function showLatest() {
+    sharedAbort.current?.abort(); setSharedLoading(false); setShared(false); setDecisionError('');
+    setDecision(market?.cachedDecision ?? null);
+    const url = new URL(window.location.href); url.searchParams.delete('decision'); window.history.replaceState(null, '', url);
   }
 
   async function share(asJson = false) {
@@ -199,13 +197,15 @@ function App() {
   const rawScores = decision?.scores;
   const scoresValid = rawScores && (['long', 'short', 'hold'] as const).every((key) => Number.isFinite(rawScores[key]) && rawScores[key] >= 0);
   const scoreTotal = scoresValid ? rawScores.long + rawScores.short + rawScores.hold : 0;
-  const busy = analyzing || sharedLoading;
-  const canAnalyze = status?.providerConfigured && !!market?.candles.length && !marketLoading && !busy;
+  const busy = sharedLoading;
   const trend: 'up' | 'down' = market && market.features.changePct < 0 ? 'down' : 'up';
-  const renderDecisionAction = (placement: 'desktop' | 'mobile') => <div className={`decision-action decision-action-${placement}`}>
-    <button type="button" className="analyze-button" disabled={!canAnalyze} onClick={analyze}>{analyzing ? <LoaderCircle size={18} className="spin" /> : <Sparkles size={18} />}<span>{analyzing ? '분석 중' : decision ? '최신 분석 확인' : '분석하기'}</span>{!analyzing && <ArrowRight size={18} />}</button>
-    {status?.providerConfigured && !statusError && <p className="model-state">같은 시장 데이터는 저장된 결과를 사용해요.</p>}
-    {(statusError || !status?.providerConfigured) && <p className="model-state" role="status">{statusError ? '모델 연결 확인 실패 · 새로고침해 주세요.' : !status ? '모델 연결 확인 중' : '모델 서버 연결 전'}</p>}
+  const renderCacheStatus = () => <div className="cache-status" role="status">
+    {shared ? <><span>공유된 시점의 판단</span><button className="secondary-button" onClick={showLatest}>최신 저장 결과 보기</button></> : <>
+      <span><Clock3 size={14} aria-hidden="true" />전체 종목 · 10분마다 자동 갱신</span>
+      <small>{market?.cache.error ? `갱신 지연 · ${market.cache.error}` : market?.cache.refreshing ? '새 판단을 갱신하고 있어요.' : market?.cache.checkedAt ? `최근 확인 ${clock(market.cache.checkedAt)}` : '첫 자동 분석을 준비하고 있어요.'}</small>
+      {market?.cache.error && decision && <small>이전 저장 결과를 표시하고 있어요.</small>}
+    </>}
+    {(statusError || status?.providerConfigured === false) && <small>{statusError ? '모델 연결 확인 실패' : '모델 서버 연결 전'}</small>}
   </div>;
 
   return <>
@@ -239,7 +239,8 @@ function App() {
             {market && <span className="price-delta"><span className={`price-change ${trend}`}>{market.features.changePct >= 0 ? '+' : ''}{number(market.features.changePct)}%</span><small>구간 등락</small></span>}
           </div>
 
-          {marketLoading ? <div className="chart-placeholder" role="status"><div className="chart-loader"><LoaderCircle size={20} className="spin" /><span>시세 불러오는 중</span></div></div> : marketError ? <div className="chart-placeholder chart-error" role="alert"><h3>차트를 불러오지 못했어요.</h3><p>{marketError}</p><button type="button" className="secondary-button" onClick={() => setRefresh((count) => count + 1)}><RefreshCw size={14} /> 다시 불러오기</button></div> : market?.candles.length ? <PriceChart candles={market.candles} interval={interval} trend={trend} /> : <div className="chart-placeholder"><p>표시할 시장 데이터가 없어요.</p></div>}
+          {marketLoading && !market ? <div className="chart-placeholder" role="status"><div className="chart-loader"><LoaderCircle size={20} className="spin" /><span>시세 불러오는 중</span></div></div> : marketError && !market ? <div className="chart-placeholder chart-error" role="alert"><h3>차트를 불러오지 못했어요.</h3><p>{marketError}</p><button type="button" className="secondary-button" onClick={() => setRefresh((count) => count + 1)}><RefreshCw size={14} /> 다시 불러오기</button></div> : market?.candles.length ? <PriceChart candles={market.candles} interval={interval} trend={trend} /> : <div className="chart-placeholder"><p>표시할 시장 데이터가 없어요.</p></div>}
+          {marketError && market && <p className="inline-error" role="status">시세 갱신 지연 · 마지막 수신 데이터를 표시합니다.</p>}
           <div className="chart-caption"><span>{market ? `${market.candles.length}개 봉 · ${intervalLabel(interval)} 간격 · 종가` : '종가 기준 · USD'}</span><span>{market ? `${clock(market.asOf)} 기준` : '시장 데이터 수신 대기'}</span></div>
 
           <dl className="market-stats">
@@ -249,11 +250,10 @@ function App() {
           </dl>
         </section>
 
-        <aside className="card decision-card" aria-label="AI 시장 판단" aria-busy={busy}>
-          <div className="decision-heading"><h2>AI 판단</h2><span>{asset.code} · {intervalLabel(interval)}</span></div>
-          {renderDecisionAction('mobile')}
+        <aside className="card decision-card" aria-label="jev뇨띠 시장 판단" aria-busy={busy}>
+          <div className="decision-heading"><h2>jev뇨띠 판단</h2><span>{asset.code} · {intervalLabel(interval)}</span></div>
           <div className="decision-content" aria-live="polite">
-            {busy ? <div className="decision-empty"><LoaderCircle size={22} className="spin" /><p>{sharedLoading ? '공유 결과 불러오는 중' : '분석 중 · 첫 요청은 1분 이상 걸릴 수 있어요.'}</p></div> : decision && action ? <div className={`decision-result result-${decision.action}`}>
+            {busy ? <div className="decision-empty"><LoaderCircle size={22} className="spin" /><p>공유 결과 불러오는 중</p></div> : decision && action ? <div className={`decision-result result-${decision.action}`}>
               <div className="result-direction"><span className="direction-symbol"><ActionIcon size={30} strokeWidth={2} /></span><div><span className="direction-label">{action.label}</span><h3>{action.name}</h3></div></div>
               {scoresValid && scoreTotal > 0 && decision.scoreType === 'model_relative_likelihood' ? <div className="score-chart"><div className="score-heading"><span>행동별 상대 점수</span><span>수익 확률 아님</span></div>{(['long', 'short', 'hold'] as const).map((key) => <div className={`score-row score-${key}${key === decision.action ? ' score-chosen' : ''}`} key={key}><span>{ACTIONS[key].label}</span><div className="score-track"><div style={{ width: `${rawScores[key] / scoreTotal * 100}%` }} /></div><strong>{rawScores[key].toFixed(3)}</strong></div>)}</div> : <div className="score-unavailable">상대 점수 없음</div>}
               <div className="result-metadata">
@@ -261,11 +261,11 @@ function App() {
                 <span>시장 기준 {clock(decision.marketAsOf)} · 최초 분석 {number(decision.latencyMs / 1000, 1)}초</span>
               </div>
               <div className="share-actions"><button type="button" className="secondary-button" onClick={() => share()}><Link2 size={15} /> 공유 링크</button><button type="button" className="secondary-button" aria-label="판단 데이터 JSON 복사" onClick={() => share(true)}><Copy size={15} /> JSON</button></div>
-            </div> : <div className="decision-empty"><div className="stance-options" aria-hidden="true"><span className="stance-long">LONG</span><span className="stance-short">SHORT</span><span className="stance-hold">HOLD</span></div><p>지금 시장에 대한 모델의 선택은?</p></div>}
+            </div> : <div className="decision-empty"><div className="stance-options" aria-hidden="true"><span className="stance-long">LONG</span><span className="stance-short">SHORT</span><span className="stance-hold">HOLD</span></div><p>아직 저장된 판단이 없어요.<br />자동 분석이 끝나면 여기에 표시됩니다.</p></div>}
           </div>
           {decisionError && <div className="inline-error" role="alert">{decisionError}</div>}
           {copyState && <p className="copy-feedback" role="status">{copyState}</p>}
-          {renderDecisionAction('desktop')}
+          {renderCacheStatus()}
         </aside>
       </div>
     </main>

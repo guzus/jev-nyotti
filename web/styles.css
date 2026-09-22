@@ -159,15 +159,6 @@ main { padding-top: 8px; padding-bottom: 32px; }
 
 .inline-error { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #fff4df; border: 1px solid #f1d9a6; color: #7a4d06; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .copy-feedback { margin-top: 10px; font-size: 12px; color: var(--ink-2); line-height: 1.6; }
-.decision-action { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
-.decision-action-mobile { display: none; }
-.analyze-button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 0 16px 0 18px; border-radius: 12px; background: var(--ink); color: var(--paper); font-size: 15px; font-weight: 600; letter-spacing: -.01em; transition: background-color .15s, transform .15s; }
-.analyze-button > span { flex: 1; text-align: left; }
-.analyze-button:hover:not(:disabled) { background: #2b271f; }
-.analyze-button:active:not(:disabled) { transform: translateY(1px); }
-.analyze-button:focus-visible { outline-color: var(--accent); }
-.analyze-button:disabled { background: #e6e1d6; color: var(--ink-3); }
-.model-state { margin-top: 10px; text-align: center; font-size: 12px; line-height: 1.6; color: var(--ink-3); word-break: keep-all; }
 
 /* ---------- Footer ---------- */
 .footer-resources { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; }
@@ -193,8 +184,6 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
   .workspace { grid-template-columns: 1fr; }
   .price-chart, .chart-placeholder { height: 232px; }
   /* Only the action in the matching DOM position is exposed, keeping focus order visual. */
-  .decision-action-desktop { display: none; }
-  .decision-action-mobile { display: block; margin-top: 14px; padding-top: 0; border-top: 0; }
   .decision-content { margin-top: 16px; border-top: 1px solid var(--line); }
   .decision-empty { min-height: 128px; padding: 20px 0 8px; }
   .decision-empty p { max-width: none; }
@@ -231,7 +220,6 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
   .decision-heading h2 { font-size: 16px; }
   .direction-symbol { width: 50px; height: 50px; border-radius: 14px; }
   .result-direction h3 { font-size: 24px; }
-  .analyze-button { min-height: 48px; font-size: 14px; }
   footer { font-size: 11px; padding-top: 14px; padding-bottom: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -249,3 +237,8 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 
 .ranking-note { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 12px; color: var(--ink-3); font-size: 11px; line-height: 1.6; }
 .ranking-note a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+
+.cache-status { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 7px; color: var(--ink-2); font-size: 12px; line-height: 1.6; word-break: keep-all; }
+.cache-status > span { display: flex; align-items: center; gap: 7px; }
+.cache-status small { font-size: 12px; color: var(--ink-3); }
+.cache-status .secondary-button { margin-top: 4px; }
