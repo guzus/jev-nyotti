@@ -26,10 +26,26 @@
     "usd_per_million_input_tokens": 1.86,
     "usd_per_million_output_tokens": 5.595
   },
-  "excluded_costs": ["validation", "retries", "storage", "taxes", "data_preparation"],
+  "public_site_gpu_scenarios": {
+    "billing_hours": [10, 50],
+    "gpu_count": 1,
+    "equal_hours_not_equal_throughput": true,
+    "exact_model_compatibility_tested": false,
+    "usd_per_gpu_hour": {
+      "deepinfra_a100_80gb": 0.89,
+      "novita_h100_80gb": 1.99,
+      "modal_a100_80gb": 2.4984,
+      "runpod_flex_a100_80gb": 2.72
+    }
+  },
+  "excluded_costs": ["validation", "retries", "storage", "taxes", "data_preparation", "cpu_and_ram_addons", "network", "frontend_hosting"],
   "sources": {
     "together": "https://www.together.ai/pricing",
     "fireworks": "https://fireworks.ai/pricing",
-    "tinker": "https://tinker-docs.thinkingmachines.ai/tinker/models/"
+    "tinker": "https://tinker-docs.thinkingmachines.ai/tinker/models/",
+    "deepinfra": "https://deepinfra.com/pricing",
+    "novita": "https://novita.ai/dedicated-endpoint",
+    "modal": "https://modal.com/pricing",
+    "runpod": "https://www.runpod.io/pricing"
   }
 }

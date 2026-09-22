@@ -4,11 +4,11 @@ Checked 2026-09-22. USD throughout. These are public-rate calculations, not vend
 
 ## Recommended route
 
-For the initial internal research/paper-trading experiment, try **Tinker training plus checkpoint sampling**. Its training cost exceeds Together's, but low-volume evaluation need not reserve a GPU. Confirm account access and run a small latency/cost smoke test before a full training job.
+For the newly specified low-traffic **public website**, see the [expanded provider comparison and product plan](provider-landscape.md). Prefer precomputed, held-out historical examples and shared cached results. Shortlist Together for managed training and DeepInfra/Novita for managed scale-to-zero hosting; Modal provides more runtime control. Exact checkpoint compatibility remains untested.
 
-For subsequent production hosting, benchmark an exported model on **Runpod A100 80GB**. Flex workers can scale to zero for infrequent calls; an always-on Pod may fit frequent decisions better. This needs deployment engineering and verification of the exact Qwen architecture, adapter conversion, chat template, and runtime. It is not an already-tested deployment recommendation.
+For **internal research/paper evaluation**, Tinker training plus checkpoint sampling remains an option. Its beta API's stated internal/testing scope is why it is not the first choice for the public app.
 
-Use Together dedicated hosting for a simpler same-provider handoff when its hourly cost is acceptable. Fireworks is another managed option, but the listed dedicated GPU rate is higher in this comparison.
+Runpod remains a programmable GPU alternative. Exported checkpoints need verification of architecture, adapter conversion, chat template, numerical behavior, context capacity, and latency wherever they are hosted.
 
 ## Tinker
 
@@ -52,9 +52,9 @@ One GPU is assumed below only for cost illustration. Exact fit, context capacity
 | Runpod A100 80GB Pod, listed Secure Cloud rate | 1.59 | 1,144.80 |
 | Runpod A100 serverless flex, worker-running equivalent | 2.72 | 1,958.40 |
 
-[Together pricing](https://www.together.ai/pricing) also lists an H100 promotion at $3.99/hour through 2026-09-30; do not use it as a lasting monthly rate. [Fine-tuned endpoint billing](https://support.together.ai/articles/7922061943-fine-tuning-pricing) continues while the endpoint runs.
+[Together pricing](https://www.together.ai/pricing) also lists an H100 promotion at $3.99/hour through 2026-09-30; do not use it as a lasting monthly rate. [Fine-tuned endpoint billing](https://support.together.ai/articles/7922061943-fine-tuning-pricing) continues while the endpoint runs. The [current dedicated autoscaling description](https://www.together.ai/blog/autoscaling-endpoints-for-llm-inference) distinguishes explicit stop (`min=max=0`) from automatic wake-on-request: stopped endpoints require an explicit restart.
 
-[Fireworks prices](https://fireworks.ai/pricing) are per GPU; its [LoRA deployment documentation](https://docs.fireworks.ai/fine-tuning/deploying-loras) requires on-demand dedicated deployment, not serverless LoRA hosting.
+[Fireworks prices](https://fireworks.ai/pricing) are per GPU; its [LoRA deployment documentation](https://docs.fireworks.ai/fine-tuning/deploying-loras) requires on-demand dedicated deployment, not shared serverless LoRA hosting. However, [dedicated deployments DO support scale-to-zero](https://docs.fireworks.ai/deployments/autoscaling). Therefore $5,760 is a 720-hour illustration, **not a mandatory monthly minimum**. The default idle timeout is one hour and can be reduced to five minutes. Cold-start requests return 503 rather than being queued; the client must retry.
 
 [Runpod listed rates](https://www.runpod.io/articles/guides/ai-server-cost) vary by cloud tier and availability. [Flex billing](https://www.runpod.io/product/serverless) covers worker start through full stop, not just token generation. At 30 **total billable worker hours**, the A100 flex example is $81.60, plus storage and other charges. Frequent requests, model loading, and idle timeout can keep a worker billable; scale-to-zero does not imply negligible latency or cost.
 
