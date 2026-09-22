@@ -1,0 +1,35 @@
+{
+  "checked_on": "2026-09-22",
+  "currency": "USD",
+  "model": "Qwen/Qwen3.8-27B",
+  "status": "illustrative_estimates_not_measured",
+  "training": {
+    "examples": 10000,
+    "tokens_per_example": 1000,
+    "epochs": 3,
+    "usd_per_million_tokens": {
+      "together_lora_sft": 1.05,
+      "fireworks_16_1_to_80b_lora_sft_tier": 3.0,
+      "tinker_64k": 4.103
+    }
+  },
+  "sampling": {
+    "provider": "tinker",
+    "context_limit": 65536,
+    "days": 30,
+    "decision_streams": 1,
+    "calls_per_interval": 1,
+    "interval_minutes": [60, 5, 1],
+    "input_tokens": 2000,
+    "output_tokens_including_thinking": 200,
+    "cached_input_fraction": 0,
+    "usd_per_million_input_tokens": 1.86,
+    "usd_per_million_output_tokens": 5.595
+  },
+  "excluded_costs": ["validation", "retries", "storage", "taxes", "data_preparation"],
+  "sources": {
+    "together": "https://www.together.ai/pricing",
+    "fireworks": "https://fireworks.ai/pricing",
+    "tinker": "https://tinker-docs.thinkingmachines.ai/tinker/models/"
+  }
+}
