@@ -4,6 +4,25 @@ The [TypeSafe API](https://docs.typesafe.ai/api) defines the transport contract.
 
 See [`api-example.json`](api-example.json) for a complete mixed-primitive request. Keep secrets out of frontend code and URLs.
 
+Official SDK example (verified using `typesafe-sdk==0.7.1`):
+
+```python
+import os
+from typesafe_sdk import TypeSafeClient, Choice, RetryPolicy
+
+with TypeSafeClient(
+    api_key=os.environ['JEV_API_KEY'],
+    base_url='https://jev-trading-web-production.up.railway.app',
+    model='Qwen/Qwen3.5-4B',
+    retry=RetryPolicy(max_retries=0, timeout=180),
+) as client:
+    result = client.system_one(
+        {'description': 'A red apple'},
+        {'color': Choice(instructions='Choose the stated color.', criteria={'red': None, 'blue': None})},
+    )
+    print(result.choices['color'].choice)
+```
+
 ```sh
 curl "$JEV_BASE_URL/v1/systemone" -H "Authorization: Bearer $JEV_API_KEY" -H 'Content-Type: application/json' --data-binary @docs/api-example.json
 curl "$JEV_BASE_URL/v1/trading/decisions" -H "Authorization: Bearer $JEV_API_KEY" -H 'Content-Type: application/json' --data '{"symbol":"BTCUSD","interval":15}'

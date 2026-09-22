@@ -72,6 +72,8 @@ test('API requires auth, validates model, coalesces public analyses, persists sh
   const post=(path:string,body:unknown,authorized=true)=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',...(authorized?{Authorization:`Bearer ${key}`}:{})},body:JSON.stringify(body)});
   try {
     assert.equal((await post('/v1/systemone',request,false)).status,401);
+    const models=await (await fetch(base+'/v1/models',{headers:{Authorization:`Bearer ${key}`}})).json();
+    assert.equal(models.models[0].name,model);assert.ok(models.models[0].description);assert.match(models.models[0].release_date,/^\d{4}-\d{2}-\d{2}$/);
     assert.equal((await post('/v1/systemone',{...request,model:'jev-1.13'})).status,422);
     assert.equal((await post('/v1/systemone',{...request,questions:{}})).status,422);
     const response=await post('/v1/systemone',request);assert.equal(response.status,200);

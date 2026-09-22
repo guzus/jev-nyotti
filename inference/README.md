@@ -15,6 +15,8 @@ real weights (`INFERENCE_DEVICE=cpu`), but is not a low-latency serving target.
 ## Internal API contract
 
 `POST /score` requires `Authorization: Bearer <INFERENCE_API_KEY>`.
+The Modal deployment additionally requires `Modal-Key` and `Modal-Secret`
+proxy headers. These reject unauthenticated traffic before a GPU is started.
 The key must contain at least 32 non-whitespace ASCII characters. Startup fails
 before downloading weights if it is missing or invalid. Keep this credential
 server-side in the Railway gateway; never place it in a browser bundle.
@@ -52,7 +54,8 @@ Limits: 1–8 jobs, 1–255 options/job, 64 KiB body, 8,192 formatted input toke
 Oversized input is rejected, never truncated. JSON non-finite numbers are rejected.
 One GPU operation runs at a time, with at most eight pending HTTP requests.
 
-`GET /healthz` is unauthenticated, exposes only model provenance/limits, and
+`GET /healthz` bypasses the application Bearer check (Modal proxy authentication
+still applies), exposes only model provenance/limits, and
 reports ready only after loading. HTTP 401 means bad authentication; 413 means
 body too large; 422 means invalid schema or context too long; 429 means queue
 full; 503 means the model is unavailable. Responses never reflect credentials or
@@ -72,6 +75,8 @@ still be influenced by malicious content in state. This service executes no tool
 Prerequisites: a Modal account with GPU billing enabled; a secret named
 `jev-qwen-inference` containing a strong `INFERENCE_API_KEY`; outbound access to
 the public Hugging Face model. No Hugging Face token is needed for the base model.
+Create a proxy token with `modal workspace proxy-tokens create` and store its
+pair in the gateway's `MODAL_PROXY_KEY` / `MODAL_PROXY_SECRET` environment.
 Create the secret through Modal's dashboard or its local secret workflow; do not
 paste credentials into source control or shell command history.
 

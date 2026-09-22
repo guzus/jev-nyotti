@@ -1,5 +1,7 @@
 # Jev Trading Lab
 
+[Live website](https://jev-trading-web-production.up.railway.app) · [API schema](https://jev-trading-web-production.up.railway.app/openapi.json)
+
 Qwen3.5-4B 실제 logits를 사용하는 **TypeSafe/Jev 호환 API**와 한국어 시장 분석 웹사이트. Railway는 웹·API를, Modal L4는 모델을 서빙합니다. 현재는 추가 학습 전 기본 모델이며 **워뇨띠 매매내역을 입수하거나 학습하지 않았습니다.** 주문 실행 기능은 없습니다.
 
 ![Runtime architecture](diagrams/runtime.png)

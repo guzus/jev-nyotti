@@ -100,7 +100,10 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     const value=store.getDecision(id.data);if(!value) throw new ApiError(404,'not_found','저장된 분석을 찾을 수 없습니다. 공유 결과는 30일간 보관됩니다.');
     res.json({...value,cached:true});
   });
-  app.get('/v1/models',auth,(_req,res)=>res.json({object:'list',data:[{id:config.modelId,object:'model',owned_by:'Qwen',training_status:config.trainingStatus}]}));
+  app.get('/v1/models',auth,(_req,res)=>res.json({models:[{name:config.modelId,
+    description:'Qwen3.5-4B logits classifier; TypeSafe wire-compatible, uncalibrated.',
+    // Base model release date: official QwenLM repository news, 2026-03-02.
+    release_date:'2026-03-02',training_status:config.trainingStatus,revision:config.modelRevision}]}));
   app.post('/v1/systemone',auth,limit('systemone',30),async(req,res)=>{
     res.setHeader('Cache-Control','no-store');
     const body=systemOneSchema.parse(req.body);
