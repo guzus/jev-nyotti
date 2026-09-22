@@ -33,3 +33,17 @@ the input when the function finishes normally. On watchdog interruption retrieve
 `modal volume get jev-nyotti-replay RUN_ID/output.json ./output.json`.
 Output can be imported by the four-hour-aware PnL importer. Auxiliary checkpoint
 contains logits/timings; published input contains no model-generated price data.
+
+The offline runner now attempts cross-symbol tensor batches after the first actual
+cutoff matches sequential winners and probabilities within 0.01. First-cutoff
+outputs remain sequential; parity/error failures fall back to the serial engine.
+The live inference service is unchanged.
+
+One-shot completion publisher (does **not** start or resume GPU work):
+`python3 scripts/publish_replay_when_ready.py --run-id RUN --input INPUT.json --expected-decisions 16200`
+It reads the existing Modal Volume, validates the exact requested range/model and
+completed count, passes results through the PnL importer, commits only the two
+public report artifacts on main, pushes, and verifies the deployed API. Concurrent
+report edits or incomplete runs stop publication. It writes a local publication
+receipt alongside the input. The normal Modal local entrypoint also saves results
+there, so the job is recoverable without further inference spend.
