@@ -1,0 +1,14 @@
+flowchart LR
+  browser["Browser / React trading lab"] -->|HTTPS public demo| api["Railway API / Auth and quota"]
+  client["TypeSafe client"] -->|Bearer systemone| api
+  api -->|Closed OHLC candles| market["Kraken public API"]
+  api -->|Cache and usage reservations| db[("SQLite volume /data")]
+  api -->|Proxy auth and Bearer score| gpu["Modal L4 / Qwen3.5-4B logits"]
+  gpu -->|Pinned weights| cache[("Modal model cache")]
+  cache -->|Initial download| hf["Hugging Face / Official Qwen"]
+  classDef platform fill:#dbeafe,stroke:#2563eb,color:#172554
+  classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065
+  classDef app fill:#dcfce7,stroke:#16a34a,color:#14532d
+  class browser,client app
+  class api,db,gpu,cache platform
+  class market,hf external

@@ -21,3 +21,11 @@ runs/
 *.xlsx
 *.parquet
 *.jsonl
+node_modules/
+dist/
+.runtime/
+.pytest_cache/
+*.sqlite*
+*.log
+artifacts/
+.railway/

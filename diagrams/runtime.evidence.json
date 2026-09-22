@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "scope": "Implemented runtime boundaries; deployment status verified separately",
+  "nodes": [
+    {
+      "id": "api",
+      "label": "Railway API",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "railway.json",
+        "server/app.ts"
+      ]
+    },
+    {
+      "id": "browser",
+      "label": "React trading lab",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "web/main.tsx"
+      ]
+    },
+    {
+      "id": "cache",
+      "label": "Modal model cache",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "inference/modal_app.py"
+      ]
+    },
+    {
+      "id": "client",
+      "label": "TypeSafe client",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "docs/api.md",
+        "server/app.ts"
+      ]
+    },
+    {
+      "id": "db",
+      "label": "SQLite volume",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "docs/deployment.md",
+        "server/store.ts"
+      ]
+    },
+    {
+      "id": "gpu",
+      "label": "Modal L4 Qwen logits",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "inference/jev_inference/engine.py",
+        "inference/modal_app.py"
+      ]
+    },
+    {
+      "id": "hf",
+      "label": "Official Qwen weights",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "inference/jev_inference/engine.py",
+        "inference/jev_inference/settings.py"
+      ]
+    },
+    {
+      "id": "market",
+      "label": "Kraken public API",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "server/market.ts"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "api",
+      "to": "db",
+      "label": "Cache and usage",
+      "confidence": "observed",
+      "evidencePaths": [
+        "server/app.ts",
+        "server/store.ts"
+      ]
+    },
+    {
+      "from": "api",
+      "to": "gpu",
+      "label": "Authenticated score",
+      "confidence": "observed",
+      "evidencePaths": [
+        "server/provider.ts"
+      ]
+    },
+    {
+      "from": "api",
+      "to": "market",
+      "label": "Closed candles",
+      "confidence": "observed",
+      "evidencePaths": [
+        "server/market.ts"
+      ]
+    },
+    {
+      "from": "browser",
+      "to": "api",
+      "label": "HTTPS demo",
+      "confidence": "observed",
+      "evidencePaths": [
+        "web/main.tsx"
+      ]
+    },
+    {
+      "from": "cache",
+      "to": "hf",
+      "label": "Initial download",
+      "confidence": "observed",
+      "evidencePaths": [
+        "inference/jev_inference/engine.py",
+        "inference/modal_app.py"
+      ]
+    },
+    {
+      "from": "client",
+      "to": "api",
+      "label": "Bearer systemone",
+      "confidence": "observed",
+      "evidencePaths": [
+        "server/app.ts"
+      ]
+    },
+    {
+      "from": "gpu",
+      "to": "cache",
+      "label": "Pinned weights",
+      "confidence": "observed",
+      "evidencePaths": [
+        "inference/modal_app.py"
+      ]
+    }
+  ],
+  "assumptions": [
+    "Diagram describes deployment configuration, not live uptime.",
+    "Local preview uses a local SQLite directory; deployed GPU remains separate."
+  ],
+  "omitted": [
+    "No training or order execution exists.",
+    "Provider internal network topology is not represented."
+  ]
+}

@@ -1,0 +1,12 @@
+.git
+node_modules
+dist
+.env*
+.runtime
+data
+datasets
+checkpoints
+models
+artifacts
+*.sqlite*
+*.log

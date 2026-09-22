@@ -1,0 +1,13 @@
+{
+  "model": "Qwen/Qwen3.5-4B",
+  "state": {"symbol":"BTCUSD","position":"flat","observation":"No price history or market data supplied."},
+  "questions": {
+    "action": {
+      "type":"choice",
+      "instructions":"Choose a research stance using only the supplied observations. Prefer hold when market data is missing.",
+      "criteria":{"long":"Upward stance","short":"Downward stance","hold":"Insufficient evidence; remain flat"}
+    },
+    "data_sufficient": {"type":"noul","instructions":"Does the state include enough price history for directional market analysis?"},
+    "evidence_quality": {"type":"score","instructions":"Rate the quality of the provided market evidence.","criteria":["Missing market evidence","Partial evidence","Sufficient evidence"]}
+  }
+}

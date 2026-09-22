@@ -15,7 +15,7 @@ requirements = [
     for name in ("requirements-api.txt", "requirements-gpu.txt")
     for line in (HERE / name).read_text().splitlines()
     if line.strip() and not line.startswith(("#", "-r "))
-]
+] if modal.is_local() else []
 app = modal.App("jev-qwen-35-4b")
 cache = modal.Volume.from_name("jev-qwen-model-cache", create_if_missing=True)
 image = (
@@ -45,7 +45,7 @@ image = (
     secrets=[modal.Secret.from_name("jev-qwen-inference", required_keys=["INFERENCE_API_KEY"])],
 )
 @modal.concurrent(max_inputs=8)
-@modal.asgi_app()
+@modal.asgi_app(requires_proxy_auth=True)
 def api():
     from jev_inference.app import create_app
 
