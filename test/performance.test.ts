@@ -20,3 +20,19 @@ test('published importer report is served with exact accounting values',async()=
  assert.equal(actual.report.pnl,value.report.pnl);assert.equal(actual.report.curve.at(-1)!.equity,value.report.finalEquity);
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+
+test('four-hour report preserves explicit hourly-model and holding assumptions', async () => {
+ const {makePnlReport}=await import('../server/pnl-import.js');
+ const directory=await mkdtemp(join(tmpdir(),'jev-performance-four-hour-'));
+ try {
+  const cutoff='2026-09-01T00:00:00.000Z';
+  const value=makePnlReport({model:'test',revision:'test',generatedAt:'2026-09-01T04:00:00Z',source:'test-only',priorPolicy:'previous_prediction',intervalMinutes:240,series:[{symbol:'BTCUSD',decisions:[{marketAsOf:cutoff,action:'flat',previousAction:'flat'}],candles:[{time:Date.parse(cutoff)/1000,open:100,high:110,low:100,close:110,volume:1}]}]});
+  await writeFile(join(directory,'pnl-report.json'),JSON.stringify(value));
+  const actual=await performanceReader(directory)() as typeof value;
+  assert.equal(actual.report.assumptions.intervalMinutes,240);
+  assert.equal(actual.report.assumptions.predictionHorizonMinutes,60);
+  assert.equal(actual.report.assumptions.holdingPolicy,'hold_target_until_next_decision');
+  assert.equal(actual.report.curve.at(-1)!.time,'2026-09-01T04:00:00.000Z');
+ } finally { await rm(directory,{recursive:true,force:true}); }
+});

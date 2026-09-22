@@ -97,3 +97,43 @@ test('atomic import preserves previous report when next input is invalid', () =>
     assert.equal(readdirSync(dir).some(p => p.endsWith('.tmp')), false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+function fourHourly(actions: PositionSide[], prices: number[], symbol = 'BTCUSD', offset = 0): PnlSeries {
+  const result = series(actions, prices, symbol);
+  result.decisions.forEach((d, i) => { d.marketAsOf = new Date((start + (offset + i) * 14400) * 1000).toISOString(); });
+  result.candles.forEach((c, i) => { c.time = start + (offset + i) * 14400; });
+  return result;
+}
+test('four-hour execution bars hold target through interval and use aggregated adverse excursion', () => {
+  const s = fourHourly(['long', 'long', 'flat'], [100, 120, 110, 130]);
+  const report = simulatePortfolio({ series: [s], intervalMinutes: 240, ...withoutCosts });
+  assert.deepEqual(report.curve.map(p => p.equity), [10000, 12000, 11000, 11000]);
+  assert.equal(report.curve.at(-1)!.time, '2025-01-01T12:00:00.000Z');
+  assert.equal(report.perSymbol[0].fills, 2);
+  assert.equal(report.assumptions.predictionHorizonMinutes, 60);
+  assert.equal(report.assumptions.intervalMinutes, 240);
+  const short = fourHourly(['short'], [100, 90]); short.candles[0].high = 201;
+  assert.throws(() => simulatePortfolio({ series: [short], intervalMinutes: 240, ...withoutCosts }), /insolvent/);
+});
+test('later listing keeps its sleeve and benchmark in cash until first available bar', () => {
+  const report = simulatePortfolio({
+    series: [fourHourly(['long', 'long'], [100, 110, 120]), fourHourly(['long'], [200, 220], 'NEWUSD', 1)],
+    intervalMinutes: 240, from: '2025-01-01T00:00:00Z', to: '2025-01-01T08:00:00Z', ...withoutCosts,
+  });
+  assert.deepEqual(report.curve.map(p => p.equity), [10000, 10500, 11500]);
+  assert.deepEqual(report.curve.map(p => p.buyHoldEquity), [10000, 10500, 11500]);
+  assert.equal(report.perSymbol[1].fills, 1);
+});
+test('explicit range rejects internal gaps, trailing gaps and off-grid starts', () => {
+  const common = { intervalMinutes: 240 as const, from: '2025-01-01T00:00:00Z', to: '2025-01-01T12:00:00Z' };
+  const s = fourHourly(['long', 'long', 'flat'], [100, 110, 120, 130]);
+  assert.throws(() => simulatePortfolio({ ...common, series: [{ ...s, decisions: s.decisions.slice(0, 2), candles: s.candles.slice(0, 2) }] }), /trailing/);
+  const gap = structuredClone(s); gap.decisions[1].marketAsOf = gap.decisions[2].marketAsOf;
+  assert.throws(() => simulatePortfolio({ ...common, series: [gap] }), /contiguous/);
+  assert.throws(() => simulatePortfolio({ ...common, from: '2025-01-01T01:00:00Z', series: [s] }), /aligned/);
+});
+test('four-hour import requires final execution bar to have closed', () => {
+  const data = { ...input(), intervalMinutes: 240, series: [fourHourly(['long'], [100, 110])] };
+  assert.throws(() => makePnlReport({ ...data, generatedAt: '2025-01-01T03:59:59Z' }), /precedes/);
+  assert.equal(makePnlReport({ ...data, generatedAt: '2025-01-01T04:00:00Z' }).status, 'ready');
+});

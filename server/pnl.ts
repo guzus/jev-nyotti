@@ -3,10 +3,9 @@ import type { Candle } from './market.js';
 export type PositionSide = 'long' | 'short' | 'flat';
 export type PnlDecision = { marketAsOf: string; action: PositionSide; previousAction?: PositionSide };
 export type PnlSeries = { symbol: string; decisions: PnlDecision[]; candles: Candle[] };
-export type PnlInput = { series: PnlSeries[]; initialCapital?: number; feeBps?: number; slippageBps?: number };
+export type PnlInput = { series: PnlSeries[]; initialCapital?: number; feeBps?: number; slippageBps?: number; intervalMinutes?: 60 | 240; from?: string; to?: string };
 export type EquityPoint = { time: string; equity: number; pnl: number; returnPct: number; drawdownPct: number; buyHoldEquity: number };
 
-const hour = 3600;
 const sides = new Set(['long', 'short', 'flat']);
 function requireValid(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Invalid PnL input: ${message}`);
@@ -22,20 +21,33 @@ export function simulatePortfolio(input: PnlInput) {
   requireValid(Number.isFinite(initialCapital) && initialCapital > 0, 'initial capital must be positive');
   requireValid([feeBps, slippageBps].every(x => Number.isFinite(x) && x >= 0 && x < 10000), 'costs must be in [0, 10000) bps');
   requireValid(series.length > 0 && new Set(series.map(s => s.symbol)).size === series.length, 'symbols must be nonempty and unique');
+  const intervalMinutes = input.intervalMinutes ?? 60;
+  requireValid(intervalMinutes === 60 || intervalMinutes === 240, 'interval must be 60 or 240 minutes');
+  const step = intervalMinutes * 60;
   const first = series[0];
   requireValid(first.decisions.length > 0, 'at least one decision is required');
-  const times = first.decisions.map(d => Date.parse(d.marketAsOf) / 1000);
-  requireValid(times.every((t, i) => Number.isFinite(t) && t > 0 && t % hour === 0 && (!i || t - times[i - 1] === hour)), 'decisions must be ordered and contiguous UTC hours');
+  requireValid((input.from === undefined) === (input.to === undefined), 'from and to must be supplied together');
+  const from = input.from ? Date.parse(input.from) / 1000 : Date.parse(first.decisions[0].marketAsOf) / 1000;
+  const to = input.to ? Date.parse(input.to) / 1000 : Date.parse(first.decisions.at(-1)!.marketAsOf) / 1000 + step;
+  requireValid(Number.isFinite(from) && Number.isFinite(to) && from > 0 && from % step === 0 && to % step === 0 && to > from, 'range must be aligned UTC intervals');
+  const times = Array.from({ length: (to - from) / step }, (_, i) => from + i * step);
+  const offsets: number[] = [];
   for (const s of series) {
     requireValid(s.symbol.trim().length > 0, 'empty symbol');
-    requireValid(s.decisions.length === times.length && s.candles.length === times.length, `${s.symbol}: require one execution candle per decision and a common range`);
+    requireValid(s.decisions.length > 0 && s.candles.length === s.decisions.length, `${s.symbol}: require one execution candle per decision`);
+    const start = Date.parse(s.decisions[0].marketAsOf) / 1000;
+    requireValid(start >= from && start < to && (start - from) % step === 0, `${s.symbol}: invalid start`);
+    if (!input.from) requireValid(start === from, `${s.symbol}: require a common range or explicit from/to`);
+    offsets.push((start - from) / step);
     s.decisions.forEach((d, i) => {
-      requireValid(Date.parse(d.marketAsOf) / 1000 === times[i] && sides.has(d.action), `${s.symbol}: invalid decision or unequal range`);
+      const time = start + i * step;
+      requireValid(Date.parse(d.marketAsOf) / 1000 === time && sides.has(d.action), `${s.symbol}: decisions must be ordered and contiguous UTC intervals`);
       requireValid(d.previousAction === undefined || d.previousAction === (i ? s.decisions[i - 1].action : 'flat'), `${s.symbol}: broken prior-position chain`);
       const c = s.candles[i];
-      requireValid(c.time === times[i], `${s.symbol}: missing next-open execution candle`);
+      requireValid(c.time === time, `${s.symbol}: missing next-open execution candle`);
       requireValid(Object.values(c).every(Number.isFinite) && c.open > 0 && c.low > 0 && c.close > 0 && c.volume >= 0 && c.low <= Math.min(c.open, c.close) && c.high >= Math.max(c.open, c.close), `${s.symbol}: invalid OHLC candle`);
     });
+    requireValid(start + s.decisions.length * step === to, `${s.symbol}: missing trailing execution data`);
   }
   const fee = feeBps / 10000, slip = slippageBps / 10000;
   const allocation = initialCapital / series.length;
@@ -45,7 +57,11 @@ export function simulatePortfolio(input: PnlInput) {
   for (let i = 0; i < times.length; i++) {
     let equity = 0, buyHoldEquity = 0;
     series.forEach((s, j) => {
-      const a = accounts[j], c = s.candles[i], target = s.decisions[i].action;
+      const a = accounts[j], index = i - offsets[j];
+      // Before the asset's first available execution bar its allocated sleeve
+      // remains cash; no invented historical price is used for either strategy.
+      if (index < 0) { equity += a.cash; buyHoldEquity += a.buyHoldCash; return; }
+      const c = s.candles[index], target = s.decisions[index].action;
       const trade = (delta: number) => {
         const fillPrice = c.open * (1 + Math.sign(delta) * slip);
         const cost = Math.abs(delta * fillPrice) * fee;
@@ -67,7 +83,7 @@ export function simulatePortfolio(input: PnlInput) {
         }
         a.side = target;
       }
-      if (i === 0) {
+      if (index === 0) {
         a.buyHoldQuantity = allocation / (c.open * (1 + slip) * (1 + fee));
         a.buyHoldCash -= a.buyHoldQuantity * c.open * (1 + slip) * (1 + fee);
       }
@@ -84,7 +100,7 @@ export function simulatePortfolio(input: PnlInput) {
     peak = Math.max(peak, equity);
     const drawdownPct = (1 - equity / peak) * 100;
     maxDrawdownPct = Math.max(maxDrawdownPct, drawdownPct);
-    curve.push({ time: new Date((times[i] + hour) * 1000).toISOString(), equity, pnl: equity - initialCapital, returnPct: (equity / initialCapital - 1) * 100, drawdownPct, buyHoldEquity });
+    curve.push({ time: new Date((times[i] + step) * 1000).toISOString(), equity, pnl: equity - initialCapital, returnPct: (equity / initialCapital - 1) * 100, drawdownPct, buyHoldEquity });
   }
   const end = curve.at(-1)!;
   return {
@@ -97,6 +113,6 @@ export function simulatePortfolio(input: PnlInput) {
       const equity = a.cash + a.quantity * last.close;
       return { symbol: s.symbol, initialCapital: allocation, equity, pnl: equity - allocation, returnPct: (equity / allocation - 1) * 100, maxDrawdownPct: a.maxDrawdownPct, fees: a.fees, slippage: a.slippage, fills: a.fills, endingAction: a.side, buyHoldEquity: a.buyHoldCash + a.buyHoldQuantity * last.close };
     }),
-    assumptions: { feeBps, slippageBps, intervalMinutes: 60, initialPosition: 'flat', allocation: 'equal_initial_sleeves', sizing: '1x_equity_on_side_change', execution: 'next_candle_open_at_input_cutoff', mark: 'hourly_close', endingPosition: 'marked_to_market_not_liquidated', fundingIncluded: false, borrowCostsIncluded: false, liquidationModeled: false, dividendsIncluded: false, reconstruction: true },
+    assumptions: { feeBps, slippageBps, intervalMinutes, inputIntervalMinutes: 60, predictionHorizonMinutes: 60, holdingPolicy: 'hold_target_until_next_decision', unavailableBeforeStart: 'cash', initialPosition: 'flat', allocation: 'equal_initial_sleeves', sizing: '1x_equity_on_side_change', execution: 'next_candle_open_at_input_cutoff', mark: intervalMinutes === 60 ? 'hourly_close' : 'four_hour_close', endingPosition: 'marked_to_market_not_liquidated', fundingIncluded: false, borrowCostsIncluded: false, liquidationModeled: false, dividendsIncluded: false, reconstruction: true },
   };
 }

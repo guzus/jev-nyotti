@@ -11,6 +11,7 @@ export const pnlImportSchema = z.object({
   model: z.string().trim().min(1).max(300), revision: z.string().trim().min(1).max(500),
   generatedAt: timestamp, source: z.string().trim().min(1).max(300),
   priorPolicy: z.literal('previous_prediction'),
+  intervalMinutes: z.union([z.literal(60), z.literal(240)]).optional(), from: timestamp.optional(), to: timestamp.optional(),
   initialCapital: z.number().positive().optional(),
   feeBps: z.number().nonnegative().lt(10000).optional(), slippageBps: z.number().nonnegative().lt(10000).optional(),
   series: z.array(z.object({
@@ -24,7 +25,7 @@ export function makePnlReport(input: unknown) {
   const parsed = pnlImportSchema.parse(input);
   const report = simulatePortfolio(parsed);
   const latestCutoff = Math.max(...parsed.series.map(s => Date.parse(s.decisions.at(-1)!.marketAsOf)));
-  if (Date.parse(parsed.generatedAt) < latestCutoff + 3600000) throw new Error('generatedAt precedes the final completed execution candle');
+  if (Date.parse(parsed.generatedAt) < latestCutoff + (parsed.intervalMinutes ?? 60) * 60000) throw new Error('generatedAt precedes the final completed execution candle');
   return { status: 'ready' as const, model: parsed.model, revision: parsed.revision, generatedAt: parsed.generatedAt, source: parsed.source, priorPolicy: parsed.priorPolicy, report };
 }
 
@@ -47,7 +48,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     if (process.argv.length !== 4) throw new Error('Usage: node dist/server/pnl-import.js INPUT.json OUTPUT_DIRECTORY');
     const { path, result } = importPnlReport(process.argv[2], process.argv[3]);
-    console.log(`Saved ${result.report.perSymbol.length} symbols and ${result.report.curve.length - 1} hourly points to ${path}`);
+    console.log(`Saved ${result.report.perSymbol.length} symbols and ${result.report.curve.length - 1} points to ${path}`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'PnL import failed');
     process.exitCode = 1;
