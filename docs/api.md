@@ -12,7 +12,7 @@ from typesafe_sdk import TypeSafeClient, Choice, RetryPolicy
 
 with TypeSafeClient(
     api_key=os.environ['JEV_API_KEY'],
-    base_url='https://jevtrade.up.railway.app',
+    base_url='https://jt.memtherscan.xyz',
     model='Qwen/Qwen3.5-4B',
     retry=RetryPolicy(max_retries=0, timeout=180),
 ) as client:
@@ -63,3 +63,7 @@ Hits preserve `id`, `generatedAt`, `marketAsOf`, scores and `latencyMs`, and set
 Supported USD markets: `BTCUSD`, `ETHUSD`, `SOLUSD`, `XRPUSD`, `DOGEUSD`, `ADAUSD`, `AVAXUSD`, `LINKUSD`, `DOTUSD`, `LTCUSD`, `BNBUSD`, `SUIUSD`, `NEARUSD`, `PEPEUSD`, `ZECUSD`. Intervals remain 15, 60 and 240 minutes. Dogecoin uses Kraken’s `XDGUSD` market internally; clients always use `DOGEUSD`. All markets share the existing cache, quota and closed-candle validation rules.
 
 The homepage shows only the ten symbols in [volume-ranking.json](volume-ranking.json), ordered by CoinGecko-reported global 24h USD volume after excluding stablecoins. The UI labels the snapshot date; ranking is not auto-refreshed. The five previous symbols remain API-supported to preserve historical shares. Global aggregate volume selects the list only; charts and inference still use Kraken USD candles.
+
+## Fine-tuned decision semantics
+
+With `MODEL_TRAINING_STATUS=fine_tuned`, trading results use `action: long | short | flat` and the corresponding three `scores` keys, with `semantics: next_hour_position_side`. `flat` means zero exposure; it is not silently renamed to the old base model's `hold` stance. Old shared base results retain `hold` and their original revision. The prediction horizon is one hour regardless of the selected chart interval. Inputs assume a hypothetical prior flat position and use Kraken spot candles, while training used hourly BitMEX BTC exposure; this transfer is experimental and has no demonstrated profitability. `/v1/systemone` still accepts caller-defined questions.

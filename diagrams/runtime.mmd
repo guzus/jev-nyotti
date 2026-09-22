@@ -1,14 +1,16 @@
 flowchart LR
-  browser["Browser / React trading lab"] -->|HTTPS public demo| api["Railway API / Auth and quota"]
+  browser["Browser / jev뇨띠"] -->|Read saved judgments| api["Railway API / Auth and quota"]
+  browser -->|Page views| ga["Google Analytics 4"]
   client["TypeSafe client"] -->|Bearer systemone| api
+  worker["Railway worker / 30 markets every 10 min"] -.->|Changed snapshots only| api
   api -->|Closed OHLC candles| market["Kraken public API"]
-  api -->|Cache and usage reservations| db[("SQLite volume /data")]
-  api -->|Proxy auth and Bearer score| gpu["Modal L4 / Qwen3.5-4B logits"]
-  gpu -->|Pinned weights| cache[("Modal model cache")]
-  cache -->|Initial download| hf["Hugging Face / Official Qwen"]
+  api -->|Snapshots, leases and quota| db[("SQLite volume /data")]
+  api -->|Authenticated score| gpu["Modal L4 / Qwen3.5-4B + LoRA"]
+  gpu -->|Pinned base and adapter| cache[("Modal model cache")]
+  cache -->|Initial download| hf["Hugging Face / Qwen + jev-nyotti"]
   classDef platform fill:#dbeafe,stroke:#2563eb,color:#172554
   classDef external fill:#ede9fe,stroke:#7c3aed,color:#2e1065
   classDef app fill:#dcfce7,stroke:#16a34a,color:#14532d
   class browser,client app
-  class api,db,gpu,cache platform
-  class market,hf external
+  class api,db,gpu,cache,worker platform
+  class market,hf,ga external

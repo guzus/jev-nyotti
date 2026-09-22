@@ -12,10 +12,10 @@ import { startAnalytics } from './analytics.js';
 
 type SymbolCode = import('../server/contracts.js').TradeRequest['symbol'];
 type Interval = 15 | 60 | 240;
-type Action = 'long' | 'short' | 'hold';
+type Action = 'long' | 'short' | 'hold' | 'flat';
 type Status = {
-  model: string; trainingStatus: 'base'; providerConfigured: boolean;
-  apiAuthRequired: boolean; inferenceMode: 'live' | 'unconfigured'; gaMeasurementId?: string | null;
+  model: string; trainingStatus: 'base' | 'fine_tuned'; providerConfigured: boolean;
+  scheduledAnalysisEnabled?: boolean; apiAuthRequired: boolean; inferenceMode: 'live' | 'unconfigured'; gaMeasurementId?: string | null;
 };
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type Market = {
@@ -27,9 +27,10 @@ type Market = {
 };
 type Decision = {
   id: string; symbol: SymbolCode; interval: Interval; action: Action; summary: string;
-  model: string; trainingStatus: 'base'; generatedAt: string; marketAsOf: string;
+  model: string; trainingStatus: 'base' | 'fine_tuned'; generatedAt: string; marketAsOf: string;
   latencyMs: number; cached: boolean;
-  scores?: Record<Action, number>; scoreType: 'model_relative_likelihood' | 'not_available';
+  semantics?: 'next_hour_position_side';
+  scores?: Partial<Record<Action, number>>; scoreType: 'model_relative_likelihood' | 'not_available';
 };
 type Asset = { symbol: SymbolCode; code: string; name: string; icon: string };
 // Dated CoinGecko global-volume snapshot; see docs/volume-ranking.json.
@@ -57,6 +58,7 @@ const ACTIONS = {
   long: { name: '롱 관점', label: 'LONG', icon: ArrowUpRight },
   short: { name: '숏 관점', label: 'SHORT', icon: ArrowDownLeft },
   hold: { name: '관망', label: 'HOLD', icon: Minus },
+  flat: { name: '무포지션', label: 'FLAT', icon: Minus },
 };
 // Korean market convention: rising = red, falling = blue. Mirrors the CSS custom properties.
 const CHART = { up: '#bd3425', down: '#2058c7', grid: '#ebe6dc', tick: '#736c60', cursor: '#b8b1a3' };
@@ -162,7 +164,7 @@ function App() {
     setSharedLoading(true);
     request<Decision>(`/api/decisions/${encodeURIComponent(id)}`, { signal: controller.signal }).then((data) => {
       if (controller.signal.aborted) return;
-      setSymbol(data.symbol); setInterval(data.interval); setDecision(data);
+      setMarket(null); setSymbol(data.symbol); setInterval(data.interval); setDecision(data);
     }).catch((error) => { if (!controller.signal.aborted) setDecisionError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setSharedLoading(false); });
     return () => controller.abort();
@@ -179,7 +181,7 @@ function App() {
 
   function showLatest() {
     sharedAbort.current?.abort(); setSharedLoading(false); setShared(false); setDecisionError('');
-    setDecision(market?.cachedDecision ?? null);
+    setDecision(market?.symbol === symbol && market?.interval === interval ? market.cachedDecision : null);
     const url = new URL(window.location.href); url.searchParams.delete('decision'); window.history.replaceState(null, '', url);
   }
 
@@ -195,14 +197,15 @@ function App() {
   const action = decision ? ACTIONS[decision.action] : null;
   const ActionIcon = action?.icon || Minus;
   const rawScores = decision?.scores;
-  const scoresValid = rawScores && (['long', 'short', 'hold'] as const).every((key) => Number.isFinite(rawScores[key]) && rawScores[key] >= 0);
-  const scoreTotal = scoresValid ? rawScores.long + rawScores.short + rawScores.hold : 0;
+  const scoreKeys: Action[] = ['long', 'short', rawScores?.flat != null ? 'flat' : 'hold'];
+  const scoresValid = rawScores && scoreKeys.every((key) => typeof rawScores[key] === 'number' && Number.isFinite(rawScores[key]) && rawScores[key]! >= 0);
+  const scoreTotal = scoresValid ? scoreKeys.reduce((total, key) => total + rawScores[key]!, 0) : 0;
   const busy = sharedLoading;
   const trend: 'up' | 'down' = market && market.features.changePct < 0 ? 'down' : 'up';
   const renderCacheStatus = () => <div className="cache-status" role="status">
     {shared ? <><span>공유된 시점의 판단</span><button className="secondary-button" onClick={showLatest}>최신 저장 결과 보기</button></> : <>
-      <span><Clock3 size={14} aria-hidden="true" />전체 종목 · 10분마다 자동 갱신</span>
-      <small>{market?.cache.error ? `갱신 지연 · ${market.cache.error}` : market?.cache.refreshing ? '새 판단을 갱신하고 있어요.' : market?.cache.checkedAt ? `최근 확인 ${clock(market.cache.checkedAt)}` : '첫 자동 분석을 준비하고 있어요.'}</small>
+      <span><Clock3 size={14} aria-hidden="true" />{status?.scheduledAnalysisEnabled === false ? '자동 갱신 일시 중지' : '전체 종목 · 10분마다 자동 갱신'}</span>
+      <small>{market?.cache.error ? `갱신 지연 · ${market.cache.error}` : market?.cache.refreshing ? '새 판단을 갱신하고 있어요.' : market?.cache.checkedAt ? `최근 확인 ${clock(market.cache.checkedAt)}` : status?.scheduledAnalysisEnabled === false ? '저장된 결과만 표시합니다.' : '첫 자동 분석을 준비하고 있어요.'}</small>
       {market?.cache.error && decision && <small>이전 저장 결과를 표시하고 있어요.</small>}
     </>}
     {(statusError || status?.providerConfigured === false) && <small>{statusError ? '모델 연결 확인 실패' : '모델 서버 연결 전'}</small>}
@@ -211,7 +214,7 @@ function App() {
   return <>
     <header className="site-header">
       <a className="brand" href="/" aria-label="jev뇨띠 홈"><BrandMark /><span className="brand-name">jev뇨띠</span></a>
-      <div className="model-chip" title="추가 학습 전 기본 모델"><span>Qwen3.5-4B</span><span className="model-chip-base">기본 모델</span></div>
+      <div className="model-chip" title={status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 실험용 LoRA' : 'Qwen3.5-4B 모델'}><span>Qwen3.5-4B</span><span className="model-chip-base">{status?.trainingStatus === 'fine_tuned' ? 'LoRA 학습' : status ? '기본 모델' : '연결 확인 중'}</span></div>
     </header>
 
     <main>
@@ -255,8 +258,10 @@ function App() {
           <div className="decision-content" aria-live="polite">
             {busy ? <div className="decision-empty"><LoaderCircle size={22} className="spin" /><p>공유 결과 불러오는 중</p></div> : decision && action ? <div className={`decision-result result-${decision.action}`}>
               <div className="result-direction"><span className="direction-symbol"><ActionIcon size={30} strokeWidth={2} /></span><div><span className="direction-label">{action.label}</span><h3>{action.name}</h3></div></div>
-              {scoresValid && scoreTotal > 0 && decision.scoreType === 'model_relative_likelihood' ? <div className="score-chart"><div className="score-heading"><span>행동별 상대 점수</span><span>수익 확률 아님</span></div>{(['long', 'short', 'hold'] as const).map((key) => <div className={`score-row score-${key}${key === decision.action ? ' score-chosen' : ''}`} key={key}><span>{ACTIONS[key].label}</span><div className="score-track"><div style={{ width: `${rawScores[key] / scoreTotal * 100}%` }} /></div><strong>{rawScores[key].toFixed(3)}</strong></div>)}</div> : <div className="score-unavailable">상대 점수 없음</div>}
+              {scoresValid && scoreTotal > 0 && decision.scoreType === 'model_relative_likelihood' ? <div className="score-chart"><div className="score-heading"><span>{decision.semantics === 'next_hour_position_side' ? '1시간 후 포지션 상대 점수' : '행동별 상대 점수'}</span><span>수익 확률 아님</span></div>{scoreKeys.map((key) => <div className={`score-row score-${key}${key === decision.action ? ' score-chosen' : ''}`} key={key}><span>{ACTIONS[key].label}</span><div className="score-track"><div style={{ width: `${rawScores[key]! / scoreTotal * 100}%` }} /></div><strong>{rawScores[key]!.toFixed(3)}</strong></div>)}</div> : <div className="score-unavailable">상대 점수 없음</div>}
+              {decision.semantics === 'next_hour_position_side' && <p className="experiment-note">이전 포지션 없음 가정 · BTC 1시간 학습을 다른 시장에도 적용한 실험입니다. 수익성 미검증.</p>}
               <div className="result-metadata">
+                {shared && <span>{decision.trainingStatus === 'fine_tuned' ? 'LoRA 학습 모델' : '기본 모델'}의 저장 결과</span>}
                 <span><Clock3 size={12} aria-hidden="true" /> {decision.cached ? '저장된 분석' : '새 분석'} · {clock(decision.generatedAt)}</span>
                 <span>시장 기준 {clock(decision.marketAsOf)} · 최초 분석 {number(decision.latencyMs / 1000, 1)}초</span>
               </div>
@@ -270,7 +275,7 @@ function App() {
       </div>
     </main>
     <footer>
-      <span>Qwen3.5-4B 기본 모델 서빙 중</span>
+      <span>{status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 Qwen3.5-4B · 교육용' : status ? 'Qwen3.5-4B 기본 모델 서빙 중' : '모델 연결 확인 중'}</span>
       <div className="footer-resources">
         <nav className="project-links" aria-label="프로젝트 링크">
           <a href="https://github.com/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="GitHub 소스 코드 (새 탭)">GitHub<ArrowUpRight size={13} aria-hidden="true" /></a>

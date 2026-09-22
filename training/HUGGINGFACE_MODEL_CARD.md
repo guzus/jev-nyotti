@@ -21,9 +21,9 @@ A **rank-16 LoRA adapter for Qwen3.5-4B**, trained on 4,096 sanitized examples d
 
 This is an experimental **next-hour position-side imitation model**, not a full standalone checkpoint or a proven trading strategy. It predicts `long`, `short` or `flat` exposure from historical closed candles and the prior position side. It does not generate the trader's reasoning or execute orders.
 
-[Source and training code](https://github.com/guzus/jev-nyotti) · [Website](https://jevtrade.up.railway.app/) · [Detailed evaluation](https://github.com/guzus/jev-nyotti/blob/main/training/REAL_DATA_RESULTS.md)
+[Source and training code](https://github.com/guzus/jev-nyotti) · [Website](https://jt.memtherscan.xyz/) · [Detailed evaluation](https://github.com/guzus/jev-nyotti/blob/main/training/REAL_DATA_RESULTS.md)
 
-**The website currently serves the original base model. This published adapter has not been promoted to production.**
+**For educational purposes only.** The website serves this adapter as an experimental next-hour position-side classifier, assuming a hypothetical prior flat position. Its live inputs use Kraken spot markets and multiple candle intervals; transfer beyond the hourly BitMEX BTC training distribution is unvalidated. This deployment does not establish trading value.
 
 ## Evaluation
 
@@ -51,7 +51,7 @@ This is an experimental **next-hour position-side imitation model**, not a full 
 
 Required base: `Qwen/Qwen3.5-4B`, pinned revision **`851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`**. These files contain the adapter and tokenizer, not the base weights.
 
-The validated CUDA runtime uses Unsloth 2026.9.7, Unsloth Zoo 2026.9.6, Transformers 5.5.0, PEFT 0.18.1 and Torch 2.8.0. Use the exact dependencies in [`training/modal_real.py`](https://github.com/guzus/jev-nyotti/blob/main/training/modal_real.py), including the causal-conv1d wheel. Compatibility with arbitrary Transformers/vLLM/production runtimes has not been established.
+The validated CUDA runtime uses Unsloth 2026.9.7, Unsloth Zoo 2026.9.6, Transformers 5.5.0, PEFT 0.18.1 and Torch 2.8.0. Use the exact dependencies in [`training/modal_real.py`](https://github.com/guzus/jev-nyotti/blob/main/training/modal_real.py), including the causal-conv1d wheel. The deployed native Transformers runtime and strict PEFT loader are documented in `inference/` in the source repository. Startup verifies the pinned checkpoint, every exported FP32 adapter tensor, and active LoRA layers. Compatibility with arbitrary runtimes is not implied.
 
 From a clone of the source repository, in that CUDA environment:
 
@@ -74,7 +74,7 @@ print('Loaded next-hour exposure imitation adapter')
 PY
 ```
 
-Use [`training/real_data.py`](https://github.com/guzus/jev-nyotti/blob/main/training/real_data.py) for the exact feature schema and rubric, and [`inference/jev_inference/prompt.py`](https://github.com/guzus/jev-nyotti/blob/main/inference/jev_inference/prompt.py) for the classifier prompt with thinking disabled. Score only the verified single-token candidate labels as implemented in [`training/validation.py`](https://github.com/guzus/jev-nyotti/blob/main/training/validation.py). This is not a general chat model; `flat` means zero exposure and is not equivalent to the website's `hold` price-direction label.
+Use [`training/real_data.py`](https://github.com/guzus/jev-nyotti/blob/main/training/real_data.py) for the exact feature schema and rubric, and [`inference/jev_inference/prompt.py`](https://github.com/guzus/jev-nyotti/blob/main/inference/jev_inference/prompt.py) for the classifier prompt with thinking disabled. Score only the verified single-token candidate labels as implemented in [`training/validation.py`](https://github.com/guzus/jev-nyotti/blob/main/training/validation.py). This is not a general chat model; `flat` means zero exposure. The website's trained decisions preserve this `flat` label; older shared base-model results retain their original `hold` label.
 
 The adapter was reloaded onto a fresh pinned base with byte-identical FP32 tensors. All 12 verification choices matched, with maximum logit difference 0.0. `checksums.json` records the released file hashes.
 

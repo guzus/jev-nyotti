@@ -129,11 +129,11 @@ main { padding-top: 8px; padding-bottom: 32px; }
 .direction-symbol { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; flex: 0 0 auto; }
 .result-long .direction-symbol { background: var(--up-soft); color: var(--up); }
 .result-short .direction-symbol { background: var(--down-soft); color: var(--down); }
-.result-hold .direction-symbol { background: var(--hold-soft); color: var(--hold); }
+.result-hold .direction-symbol, .result-flat .direction-symbol { background: var(--hold-soft); color: var(--hold); }
 .direction-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
 .result-long .direction-label { color: var(--up); }
 .result-short .direction-label { color: var(--down); }
-.result-hold .direction-label { color: var(--hold); }
+.result-hold .direction-label, .result-flat .direction-label { color: var(--hold); }
 .result-direction h3 { font-size: 27px; font-weight: 600; letter-spacing: -.03em; line-height: 1.2; margin-top: 2px; }
 
 .score-chart { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
@@ -242,3 +242,6 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 .cache-status > span { display: flex; align-items: center; gap: 7px; }
 .cache-status small { font-size: 12px; color: var(--ink-3); }
 .cache-status .secondary-button { margin-top: 4px; }
+
+.score-flat .score-track > div { background: var(--ink-2); }
+.experiment-note { margin-top: 16px; font-size: 12px; line-height: 1.6; color: var(--ink-3); word-break: keep-all; }

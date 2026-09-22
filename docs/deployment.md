@@ -8,7 +8,7 @@ Authenticate with `modal token new`. Create secret `jev-qwen-inference` with a r
 
 ```sh
 modal secret create jev-qwen-inference --from-json /private/path/inference-secret.json
-modal deploy inference/modal_app.py
+modal deploy inference/modal_adapter.py
 ```
 
 The endpoint requires both `Modal-Key`/`Modal-Secret` and `Authorization: Bearer <INFERENCE_API_KEY>`. Proxy auth rejects unauthenticated traffic before GPU startup. Railway's `INFERENCE_URL` is the returned origin, without `/score`. The base public weights require no HF token. First use downloads/loads weights; later starts reuse the volume. Avoid periodic Modal health requests because they prevent scale-to-zero. Railway `/healthz` never calls the GPU.
@@ -23,8 +23,8 @@ PORT=3000
 DATA_DIR=/data
 RAILWAY_RUN_UID=0
 MODEL_ID=Qwen/Qwen3.5-4B
-MODEL_REVISION=851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
-MODEL_TRAINING_STATUS=base
+MODEL_REVISION=851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a+lora:guzus/jev-nyotti@73867def94f8b062700ad3f8d63128b4e1c9b1d4
+MODEL_TRAINING_STATUS=fine_tuned
 MAX_DAILY_EVALUATIONS=5000
 SCHEDULED_ANALYSIS_ENABLED=true
 GA_MEASUREMENT_ID=G-LQLNM6WNZK
@@ -51,3 +51,7 @@ If inference fails, inspect Modal logs, revision and both auth layers. Never sub
 Rollback Railway to the prior verified Git commit and redeploy the prior inference code with `modal deploy`. Verify a new checkpoint before changing the gateway revision; mismatches fail closed. Cache keys include revision and prompt version. To pause automatic analysis, set `SCHEDULED_ANALYSIS_ENABLED=false` and redeploy Railway; cached results remain readable. Authenticated `/v1/systemone` still permits explicitly requested inference. To halt all GPU usage, stop the active inference app in Modal. Shutdown stops claiming new slots and waits for the active call; forced termination leaves a persisted lease/cooldown for recovery. Model-cache storage can remain billable.
 
 Fine-tuning requires the real licensed dataset and time-split validation. Only after verified LoRA deployment should gateway revision/provenance and `MODEL_TRAINING_STATUS` change. See `inference/README.md`.
+
+## Trained adapter rollout
+
+The educational website uses `guzus/jev-nyotti` pinned to Hugging Face revision `73867def94f8b062700ad3f8d63128b4e1c9b1d4`, on the pinned Qwen base above. Its full provenance string must match the gateway revision. Validate the independent Modal adapter endpoint before switching `INFERENCE_URL` and `MODEL_TRAINING_STATUS`; the gateway fails closed on revision mismatch and creates a separate scheduled cache identity. Keep the old base endpoint available for rollback, with zero minimum containers. Do not label an old shared base result as a trained prediction.

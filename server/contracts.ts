@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Bump whenever public analysis prompts, task semantics or feature definitions change.
-export const ANALYSIS_CACHE_VERSION=1;
+export const ANALYSIS_CACHE_VERSION=2;
 
 const jsonContent = z.union([z.string().max(24000), z.array(z.unknown()), z.record(z.string(), z.unknown())]);
 const key = z.string().min(1).max(128);
@@ -29,8 +29,9 @@ export type Answer =
   | {type:'score';score:number;legend:Record<string,string>;probabilities:Record<string,number>;confidence:number}
   | {type:'noul';noul:number};
 export type Decision = {
-  id:string; symbol:TradeRequest['symbol']; interval:TradeRequest['interval']; action:'long'|'short'|'hold';
+  id:string; symbol:TradeRequest['symbol']; interval:TradeRequest['interval']; action:'long'|'short'|'hold'|'flat';
   summary:string; model:string; revision:string; trainingStatus:'base'|'fine_tuned';
   generatedAt:string; marketAsOf:string; latencyMs:number; cached:boolean;
-  scores:{long:number;short:number;hold:number}; scoreType:'model_relative_likelihood';
+  semantics?:'next_hour_position_side';
+  scores:{long:number;short:number;hold:number}|{long:number;short:number;flat:number}; scoreType:'model_relative_likelihood';
 };

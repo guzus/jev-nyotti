@@ -11,6 +11,7 @@ import { createMarketReader,type Market } from './market.js';
 import { createScorer,type Scorer } from './provider.js';
 import { Store } from './store.js';
 import { createScheduler } from './scheduler.js';
+import { tradingPrompt } from './trading-prompt.js';
 
 export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market?:(q:TradeRequest)=>Promise<Market>;now?:()=>number}={}) {
   const store=deps.store??new Store(config.dataDir);
@@ -67,21 +68,14 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     const pending=decisionsInFlight.get(cacheKey);if(pending)return {...await pending,cached:true};
     const task=(async()=>{
       const started=performance.now();
-      const result=await evaluate({
-        model:config.modelId,
-        state:{symbol:market.symbol,market:'Kraken spot USD, not futures',interval_minutes:market.interval,
-          data_cutoff:market.asOf,position:'flat',features:market.features,
-          feature_definitions:{changePct:'change across 96 closed candles',rsi14:'simple mean gain/loss over 14 intervals',volatilityPct:'population standard deviation of close returns in percent',volumeRatio:'last closed candle volume / preceding 20-candle mean'},
-          recent_closed_candles:market.candles.slice(-24),missing:['order_book','funding','news','trader_history']},
-        questions:{direction:{type:'choice',instructions:'Given only the supplied closed-candle market snapshot, classify a hypothetical research stance for the next candle. No orders will be executed. Prefer hold if there is no clear directional evidence; a short is a directional research stance, not a spot short order. Do not infer missing news or trader history.',
-          criteria:{long:'Upward directional stance supported by the snapshot.',short:'Downward directional stance supported by the snapshot.',hold:'Insufficient directional evidence; remain flat.'}}},
-      });
+      const result=await evaluate(tradingPrompt(config,market));
       const answer=result.answers.direction;
-      if(answer.type!=='choice'||!['long','short','hold'].includes(answer.choice)) throw new ApiError(502,'invalid_decision','모델 판단 형식을 확인할 수 없습니다.');
+      if(answer.type!=='choice'||!(config.trainingStatus==='fine_tuned'?['long','short','flat']:['long','short','hold']).includes(answer.choice)) throw new ApiError(502,'invalid_decision','모델 판단 형식을 확인할 수 없습니다.');
       const action=answer.choice as Decision['action'];
-      const labels={long:'상승 방향',short:'하락 방향',hold:'관망'};
+      const labels=config.trainingStatus==='fine_tuned'?{long:'롱 포지션',short:'숏 포지션',flat:'무포지션',hold:'관망'}:{long:'상승 방향',short:'하락 방향',hold:'관망',flat:'무포지션'};
       const decision:Decision={id:randomUUID(),...request,action,
         summary:`제공된 종가·거래량 지표에서 ${labels[action]}의 모델 상대 점수가 가장 높았습니다. 이 문장은 결과 요약이며 모델이 생성한 매매 근거가 아닙니다.`,
+        ...(config.trainingStatus==='fine_tuned'?{semantics:'next_hour_position_side' as const}:{}),
         model:config.modelId,revision:result.metadata.model_revision,trainingStatus:config.trainingStatus,
         generatedAt:new Date().toISOString(),marketAsOf:market.asOf,latencyMs:Math.round(performance.now()-started),cached:false,
         scores:answer.probabilities as Decision['scores'],scoreType:'model_relative_likelihood'};

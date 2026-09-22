@@ -142,3 +142,31 @@ test('abandoned durable leases and cooldown survive restart before eventual reco
     assert.ok(store.claimSchedule(['slot'],601000,200000,600000));
   }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+test('trained trading decisions preserve position-side labels and publish their actual revision',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'jev-trained-cache-'));
+  const revision='test-revision+lora:guzus/jev-nyotti@pinned';
+  const jobsSeen:unknown[]=[];
+  const now=Date.UTC(2026,8,22,6,5);
+  const config={...readConfig(),dataDir:dir,apiKey:key,dailyLimit:30,scheduledAnalysisEnabled:true,trainingStatus:'fine_tuned' as const,modelRevision:revision};
+  const {app,store,scheduler}=createApp(config,{now:()=>now,market:async q=>market(q,now),scorer:{configured:true,score:async jobs=>{
+    jobsSeen.push(...jobs);
+    for(const job of jobs) {
+      assert.deepEqual(job.options.map(option=>option.name),['long','short','flat']);
+      const state=job.state as Record<string,unknown>;
+      assert.equal(state.position_side_before_cutoff,'flat');
+      assert.match(String(state.market),/Kraken/);
+      assert.match(String(job.instructions),/next hour/);
+      assert.match(String(job.instructions),/out of distribution/);
+    }
+    return {model,revision,elapsedMs:1,scores:jobs.map(()=>({logits:[0,0,3],inputTokens:10}))};
+  }}});
+  try {
+    await scheduler.tick();
+    const decision=scheduler.view(query).cachedDecision!;
+    assert.equal(jobsSeen.length,30); assert.equal(decision.action,'flat');
+    assert.equal(decision.semantics,'next_hour_position_side'); assert.equal(decision.revision,revision);
+    assert.deepEqual(Object.keys(decision.scores),['long','short','flat']);
+    assert.equal('hold' in decision.scores,false);
+  } finally {await scheduler.stop();store.close();rmSync(dir,{recursive:true,force:true});}
+});

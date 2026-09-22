@@ -52,7 +52,7 @@
     },
     {
       "id": "gpu",
-      "label": "Modal L4 Qwen logits",
+      "label": "Modal L4 Qwen with LoRA",
       "status": "implemented",
       "confidence": "observed",
       "evidencePaths": [
@@ -62,7 +62,7 @@
     },
     {
       "id": "hf",
-      "label": "Official Qwen weights",
+      "label": "Pinned Qwen and jev-nyotti adapter",
       "status": "implemented",
       "confidence": "observed",
       "evidencePaths": [
@@ -77,6 +77,25 @@
       "confidence": "observed",
       "evidencePaths": [
         "server/market.ts"
+      ]
+    },
+    {
+      "id": "worker",
+      "label": "30-slot scheduler",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "server/scheduler.ts",
+        "server/index.ts"
+      ]
+    },
+    {
+      "id": "ga",
+      "label": "Google Analytics 4",
+      "status": "implemented",
+      "confidence": "observed",
+      "evidencePaths": [
+        "web/analytics.ts"
       ]
     }
   ],
@@ -145,11 +164,32 @@
       "evidencePaths": [
         "inference/modal_app.py"
       ]
+    },
+    {
+      "from": "worker",
+      "to": "api",
+      "label": "Scheduled changed-snapshot inference",
+      "confidence": "observed",
+      "evidencePaths": [
+        "server/scheduler.ts",
+        "server/app.ts"
+      ]
+    },
+    {
+      "from": "browser",
+      "to": "ga",
+      "label": "Page views",
+      "confidence": "observed",
+      "evidencePaths": [
+        "web/analytics.ts"
+      ]
     }
   ],
   "assumptions": [
     "Diagram describes deployment configuration, not live uptime.",
-    "Local preview uses a local SQLite directory; deployed GPU remains separate."
+    "Local preview uses a local SQLite directory; deployed GPU remains separate.",
+    "30 slots target ten-minute refresh; cold starts and failures may delay completion.",
+    "Trained adapter transfers BTC hourly behavior imitation to Kraken markets without demonstrated profitability."
   ],
   "omitted": [
     "Manual synthetic training rehearsal is documented separately in diagrams/training.mmd.",
