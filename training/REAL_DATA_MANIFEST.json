@@ -1,0 +1,118 @@
+{
+  "task": "NEXT_HOUR_POSITION_SIDE",
+  "provenance": "user_supplied_aoa_execution_export",
+  "model": "Qwen/Qwen3.5-4B",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+  "source_files": [
+    {
+      "name": "aoa-execution-2018-03-01-2018-12-31.csv",
+      "bytes": 67993490,
+      "sha256": "8f2aa1af3caaeaeffff0375ce4d10b21e88ab22c624976d9031ddd0e715653b1"
+    },
+    {
+      "name": "aoa-execution-2019-01-01-2020-12-31.csv",
+      "bytes": 219076835,
+      "sha256": "ebbd90935d8e609e6371fec69babbfea13c0458a94748b05f3f795cecd814b5a"
+    },
+    {
+      "name": "aoa-execution-2021-01-01-2021-06-30.csv",
+      "bytes": 191784153,
+      "sha256": "a51f070c9e00aed72720b9029567d4adf32656d06594b87dff3b56360564ca37"
+    },
+    {
+      "name": "aoa-execution-2021-07-01-2021-12-31.csv",
+      "bytes": 122612445,
+      "sha256": "3bd436edb68c60bd17eb3b0c307c68baf56ad79c1da9a21a0433031f4ea7a071"
+    }
+  ],
+  "market_file": {
+    "sha256": "10f9448983444e7ce5801b4da15b35160ea8f7b2d223442f9b5ed40d52949af0",
+    "source": "https://www.bitmex.com/api/v1/trade/bucketed",
+    "candles": 33649
+  },
+  "reconciliation": {
+    "events": {
+      "Trade": 941007,
+      "Funding": 3961
+    },
+    "funding_anchors_matched": 3961,
+    "first_execution": "2018-03-05T07:28:18.063937Z",
+    "last_execution": "2021-12-24T09:21:46.227714Z"
+  },
+  "splits": {
+    "train": {
+      "count": 4096,
+      "eligible_count": 24784,
+      "eligible_labels": {
+        "flat": 1812,
+        "short": 14926,
+        "long": 8046
+      },
+      "sampled_labels": {
+        "flat": 299,
+        "long": 1366,
+        "short": 2431
+      },
+      "sampled_transitions": 173,
+      "first_cutoff": "2018-03-05T18:00:00Z",
+      "last_cutoff": "2020-12-31T22:00:00Z",
+      "eligible_persistence_accuracy": 0.9569883795997418
+    },
+    "validation": {
+      "count": 128,
+      "eligible_count": 4248,
+      "eligible_labels": {
+        "long": 1107,
+        "short": 3141
+      },
+      "sampled_labels": {
+        "short": 95,
+        "long": 33
+      },
+      "sampled_transitions": 2,
+      "first_cutoff": "2021-01-06T12:00:00Z",
+      "last_cutoff": "2021-06-30T21:00:00Z",
+      "eligible_persistence_accuracy": 0.9823446327683616
+    },
+    "test": {
+      "count": 128,
+      "eligible_count": 4137,
+      "eligible_labels": {
+        "long": 2284,
+        "short": 1853
+      },
+      "sampled_labels": {
+        "long": 70,
+        "short": 58
+      },
+      "sampled_transitions": 1,
+      "first_cutoff": "2021-07-05T11:00:00Z",
+      "last_cutoff": "2021-12-22T08:00:00Z",
+      "eligible_persistence_accuracy": 0.9920232052211748
+    }
+  },
+  "files": {
+    "train.jsonl": {
+      "sha256": "0188fdf54639f441ea987140f4d1e93c85c361dfc38c438b16fa94058211fa59",
+      "bytes": 14734870
+    },
+    "validation.jsonl": {
+      "sha256": "f0eaf8ef72f50a0f2747592078b937acdae2105f0f45a4a3a0989941d72c6517",
+      "bytes": 471187
+    },
+    "test.jsonl": {
+      "sha256": "33bf6f91444f498bb551957e019749d0bee9591402260f3082c965a32ccb5458",
+      "bytes": 469186
+    }
+  },
+  "assumptions": [
+    "Timezone-naive CSV execution timestamps interpreted as UTC; original timezone metadata unavailable.",
+    "Zero initial position, independently checked against every BTC funding quantity.",
+    "Position labels are before next-hour boundary; fills exactly at the boundary belong to the next window.",
+    "At least 96h purge between chronological splits; no future fills/prices in model input.",
+    "Pilot samples are deterministic uniform samples within each chronological split.",
+    "Source attribution is user-supplied; trader identity/authenticity not independently verified.",
+    "Position-side imitation is not the production spot-direction task, a profitability test or deployment approval."
+  ],
+  "dataset_id": "e4555b73ab5e4194"
+}

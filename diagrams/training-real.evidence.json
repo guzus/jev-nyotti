@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "scope": "Manual sanitized execution-data pilot; production serving is separate",
+  "nodes": [
+    {
+      "id": "source",
+      "label": "Local execution CSVs",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/real_data.py"
+      ]
+    },
+    {
+      "id": "market",
+      "label": "BitMEX hourly candles",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/real_data.py"
+      ]
+    },
+    {
+      "id": "build",
+      "label": "Local causal dataset builder",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/real_data.py"
+      ]
+    },
+    {
+      "id": "input",
+      "label": "Private sanitized inputs",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_real.py"
+      ]
+    },
+    {
+      "id": "cpu",
+      "label": "CPU validation and model cache",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_real.py"
+      ]
+    },
+    {
+      "id": "gpu",
+      "label": "One H100 LoRA pilot",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/run_real.py"
+      ]
+    },
+    {
+      "id": "output",
+      "label": "Private adapter and metrics",
+      "status": "manual",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/run_real.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "source",
+      "to": "build",
+      "label": "signed positions",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/real_data.py"
+      ]
+    },
+    {
+      "from": "market",
+      "to": "build",
+      "label": "closed candles",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/real_data.py"
+      ]
+    },
+    {
+      "from": "build",
+      "to": "input",
+      "label": "4 verified files",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_real.py"
+      ]
+    },
+    {
+      "from": "input",
+      "to": "cpu",
+      "label": "hash and tokenizer checks",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_real.py"
+      ]
+    },
+    {
+      "from": "cpu",
+      "to": "gpu",
+      "label": "bounded manual dispatch",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/modal_real.py"
+      ]
+    },
+    {
+      "from": "gpu",
+      "to": "output",
+      "label": "export and reload validation",
+      "confidence": "observed",
+      "evidencePaths": [
+        "training/run_real.py"
+      ]
+    }
+  ],
+  "assumptions": [
+    "Raw CSV timestamps interpreted as UTC; timezone not independently established.",
+    "Training is manually dispatched, not an always-on deployed service.",
+    "App controls asynchronous Modal function calls with absolute deadlines.",
+    "Local raw files are not uploaded; only sanitized dataset artifacts cross to Modal."
+  ],
+  "omitted": [
+    "Existing synthetic rehearsal has its own diagram.",
+    "Production Railway and L4 remain in runtime diagram; this adapter is not promoted."
+  ]
+}

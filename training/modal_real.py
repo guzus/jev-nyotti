@@ -11,8 +11,10 @@ import uuid
 
 import modal
 
-from training.modal_rehearsal import image as rehearsal_image, cache
-from training.run_real import INPUT_FILES, MAX_LENGTH, MODEL_ID, MODEL_REVISION, load_dataset, valid_id
+if modal.is_local():
+    from training.run_real import INPUT_FILES, MAX_LENGTH, MODEL_ID, MODEL_REVISION, load_dataset, valid_id
+else:
+    from run_real import INPUT_FILES, MAX_LENGTH, MODEL_ID, MODEL_REVISION, load_dataset, valid_id
 
 ROOT = Path(__file__).resolve().parents[1]
 # Local input validation uses the same typed inference Job as CPU/GPU workers.
@@ -20,7 +22,27 @@ sys.path.insert(0, str(ROOT / "inference"))
 app = modal.App("jev-qwen-real-data-pilot")
 inputs = modal.Volume.from_name("jev-qwen-real-pilot-inputs", create_if_missing=True)
 artifacts = modal.Volume.from_name("jev-qwen-real-pilot-artifacts", create_if_missing=True)
-image = rehearsal_image.add_local_file(str(ROOT / "training" / "run_real.py"), "/opt/training/run_real.py")
+cache = modal.Volume.from_name("jev-qwen-training-cache", create_if_missing=True)
+image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .apt_install("git", "build-essential")
+    .uv_pip_install(
+        "torch==2.8.0", "torchvision==0.23.0", "xformers==0.0.32.post2",
+        "unsloth==2026.9.7", "unsloth_zoo==2026.9.6", "transformers==5.5.0",
+        "trl==0.24.0", "peft==0.18.1", "torchao==0.13.0", "datasets==4.3.0",
+        "accelerate==1.15.0", "pydantic==2.12.5",
+        "https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.6.0/causal_conv1d-1.6.0%2Bcu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
+    )
+    .env({"HF_HOME": "/training-cache/huggingface", "TOKENIZERS_PARALLELISM": "false",
+          "PYTHONPATH": "/opt/inference:/opt/training", "HF_HUB_DISABLE_TELEMETRY": "1",
+          "WANDB_DISABLED": "true"})
+    .add_local_dir(str(ROOT / "inference" / "jev_inference"), "/opt/inference/jev_inference", ignore=["__pycache__"])
+    .add_local_file(str(ROOT / "training" / "data.py"), "/opt/training/data.py")
+    .add_local_file(str(ROOT / "training" / "run.py"), "/opt/training/run.py")
+    .add_local_file(str(ROOT / "training" / "validation.py"), "/opt/training/validation.py")
+    .add_local_file(str(ROOT / "training" / "verify.py"), "/opt/training/verify.py")
+)
+image = image.add_local_file(str(ROOT / "training" / "run_real.py"), "/opt/training/run_real.py")
 GPU_DEADLINE_SECONDS = 1800
 # Published rates are an estimate, not account-wide billing enforcement.
 GPU_USD_PER_SECOND = .001097
@@ -96,7 +118,8 @@ def main(dataset_dir: str):
                       "gpu_deadline_seconds": GPU_DEADLINE_SECONDS,
                       "planned_compute_ceiling_usd": round(PLANNED_COMPUTE_CEILING_USD, 4),
                       "cost_note": "Rate estimate; storage/image-build overhead additional. No automatic retry."}), flush=True)
-    with inputs.batch_upload(force=False) as batch:
+    # Content-addressed dataset directory; a manual retry uploads the same verified files.
+    with inputs.batch_upload(force=True) as batch:
         for filename in INPUT_FILES:
             batch.put_file(str(directory / filename), f"/{dataset_id}/{filename}")
     # CPU preparation is independently bounded and is terminated even on Ctrl-C.

@@ -1,0 +1,20 @@
+flowchart TD
+  source["Local execution CSVs"]
+  market["BitMEX hourly candles"]
+  build["Local causal dataset builder"]
+  input["Private sanitized inputs"]
+  cpu["CPU validation and model cache"]
+  gpu["One H100 LoRA pilot"]
+  output["Private adapter and metrics"]
+  source -->|signed positions| build
+  market -->|closed candles| build
+  build -->|4 verified files| input
+  input -->|hash and tokenizer checks| cpu
+  cpu -.->|bounded manual dispatch| gpu
+  gpu -->|export and reload validation| output
+  classDef manual fill:#fff3cd,stroke:#b7791f,color:#3b2b00;
+  classDef storage fill:#dbeafe,stroke:#2563eb,color:#172554;
+  classDef external fill:#ede9fe,stroke:#7c3aed,color:#3b0764;
+  class source,build,cpu,gpu manual;
+  class input,output storage;
+  class market external;

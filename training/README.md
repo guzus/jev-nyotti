@@ -1,4 +1,6 @@
-# Qwen3.5-4B training rehearsal
+# Qwen3.5-4B training
+
+For the user-supplied execution export, see [the real-data pilot](REAL_DATA.md). Its task and chronological evaluation are separate from this synthetic rehearsal.
 
 A manual synthetic-data smoke test for the training pipeline. It does **not** train on 워뇨띠 records, demonstrate a profitable trading strategy, or update the live website/API. Public inference continues to serve the original base checkpoint.
 
