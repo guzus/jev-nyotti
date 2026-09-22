@@ -1,0 +1,5 @@
+*
+!requirements-api.txt
+!requirements-gpu.txt
+!jev_inference/
+!jev_inference/*.py
