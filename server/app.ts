@@ -113,7 +113,7 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     res.setHeader('Cache-Control','no-store');res.json(await analyze(tradeSchema.parse(req.body)));
   });
   app.get('/openapi.json',(_req,res)=>res.json({
-    openapi:'3.1.0',info:{title:'Jev Trading Lab — Qwen TypeSafe-compatible API',version:'0.1.0',description:'TypeSafe wire-format compatibility using Qwen logits. No TypeSafe model weights or calibration. Choice/score confidence = 1 − normalized entropy. Maximum 8 independent questions; input token limit enforced by model service. No order execution.'},
+    openapi:'3.1.0',info:{title:'jev뇨띠 — Qwen TypeSafe-compatible API',version:'0.1.0',description:'TypeSafe wire-format compatibility using Qwen logits. No TypeSafe model weights or calibration. Choice/score confidence = 1 − normalized entropy. Maximum 8 independent questions; input token limit enforced by model service. No order execution.'},
     servers:[{url:'/'}],
     components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}},schemas:{SystemOne:z.toJSONSchema(systemOneSchema),TradingRequest:z.toJSONSchema(tradeSchema)}},
     paths:{

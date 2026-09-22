@@ -171,12 +171,12 @@ function App() {
 
   return <>
     <header className="site-header">
-      <a className="brand" href="/" aria-label="Jev Trading Lab 홈"><span className="brand-mark">j<span>.</span></span><span>jev<span className="brand-divider">/</span><span className="brand-sub">trading lab</span></span></a>
+      <a className="brand" href="/" aria-label="jev뇨띠 홈"><span className="brand-mark" aria-hidden="true">j<span>.</span></span><span>jev뇨띠</span></a>
       <div className="header-model"><span>Qwen3.5 <strong>4B</strong></span><span className="base-label">기본 모델</span></div>
     </header>
 
     <main>
-      <h1 className="sr-only">Jev 시장 분석</h1>
+      <h1 className="sr-only">jev뇨띠 시장 분석</h1>
       <section className="terminal" aria-label="시장 분석">
         <div className="terminal-toolbar">
           <div className="asset-tabs" role="group" aria-label="거래 종목 선택">{ASSETS.map((item) => <button key={item.symbol} aria-pressed={symbol === item.symbol} className={symbol === item.symbol ? 'selected' : ''} onClick={() => changeMarket(item.symbol, interval)}><span className={`coin coin-${item.code.toLowerCase()}`}>{item.icon}</span>{item.code}<span className="quote-currency"> / USD</span></button>)}</div>

@@ -1,4 +1,4 @@
-# Jev Trading Lab
+# jev뇨띠
 
 [Live website](https://jev-trading-web-production.up.railway.app) · [API schema](https://jev-trading-web-production.up.railway.app/openapi.json)
 

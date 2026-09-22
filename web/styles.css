@@ -13,8 +13,6 @@ button svg, a svg { flex: 0 0 auto; }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 650; letter-spacing: -.7px; min-height: 44px; }
 .brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 34px; font-size: 34px; font-weight: 700; line-height: 1; color: var(--accent); transform: translateY(-5px); }
 .brand-mark span { font-size: 21px; transform: translateY(8px); }
-.brand-divider { margin: 0 9px; font-weight: 400; font-size: 21px; color: #536558; }
-.brand-sub { font-size: 14px; font-weight: 450; letter-spacing: -.2px; color: #c5d0c4; }
 .header-model { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #b8c5b4; }
 .header-model strong { font-weight: 500; color: #d3e6ba; }
 .base-label { font-size: 10px; border: 1px solid #3a4935; border-radius: 4px; padding: 4px 6px; color: #a8b69d; white-space: nowrap; }
@@ -138,8 +136,6 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
   .site-header { height: 64px; gap: 8px; }
   .brand { gap: 6px; font-size: 20px; }
   .brand-mark { width: 22px; font-size: 29px; }
-  .brand-divider { margin: 0 6px; font-size: 17px; }
-  .brand-sub { font-size: 11px; }
   .header-model { flex-direction: column; gap: 4px; align-items: flex-end; font-size: 10px; }
   .base-label { border: 0; padding: 0; font-size: 9px; }
   main { padding-top: 4px; }
