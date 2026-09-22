@@ -38,7 +38,7 @@ export function readConfig() {
     apiKey, inferenceUrl, inferenceKey, modalKey, modalSecret, modelId, modelRevision, trainingStatus: trainingStatus as 'base'|'fine_tuned',
     dailyLimit: integer('MAX_DAILY_EVALUATIONS', 300, 1, 10000),
     publicRate: integer('PUBLIC_REQUESTS_PER_MINUTE', 6, 1, 60),
-    inferenceTimeout: integer('INFERENCE_TIMEOUT_MS', 120000, 1000, 180000),
+    inferenceTimeout: integer('INFERENCE_TIMEOUT_MS', 120000, 1000, 300000),
     trustProxy: integer('TRUST_PROXY_HOPS', 0, 0, 3),
   };
 }
