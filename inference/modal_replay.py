@@ -1,5 +1,7 @@
 """Explicit-budget, resumable historical inference. Never invoked by live service."""
 import json
+import math
+import re
 import os
 from pathlib import Path
 import time
@@ -12,9 +14,11 @@ results = modal.Volume.from_name('jev-nyotti-replay', create_if_missing=True)
 RATE_USD_SECOND = 0.0013
 RESERVE_SECONDS = 180
 
-@app.function(image=image,gpu='H100',cpu=4,memory=32768,volumes={'/models':cache,'/replay':results},timeout=7200,startup_timeout=120,retries=0,max_containers=1)
+@app.function(image=image,gpu='H100',cpu=4,memory=32768,volumes={'/models':cache,'/replay':results},timeout=7200,startup_timeout=120,retries=0,max_containers=1,scaledown_window=2)
 def run(run_id: str, budget_usd: float, max_decisions: int):
     import threading
+    if not re.fullmatch("[a-zA-Z0-9_-]{1,80}",run_id) or not math.isfinite(budget_usd) or not 0.32 <= budget_usd <= 10 or max_decisions < 1:
+        raise ValueError("invalid run ID, budget, or max decisions")
     from jev_inference.engine import QwenEngine
     from jev_inference.settings import Settings
     from jev_inference.replay import ACTIONS, STEP, epoch, iso, fingerprint, index_candles, window, job
@@ -85,9 +89,20 @@ def run(run_id: str, budget_usd: float, max_decisions: int):
 
 @app.local_entrypoint()
 def main(input_file: str, run_id: str, budget_usd: float, max_decisions: int = 30, resume: bool = False):
-    import re
     if not re.fullmatch('[a-zA-Z0-9_-]{1,80}',run_id) or not 0.32<=budget_usd<=10 or max_decisions<1:
         raise ValueError('invalid run ID, budget (0.32..10 USD), or max decisions')
+    from jev_inference.replay import STEP, epoch, index_candles, window
+    manifest = json.loads(Path(input_file).read_text())
+    start, end = epoch(manifest['from']), epoch(manifest['to'])
+    if start % STEP or end % STEP or end <= start or end > time.time():
+        raise ValueError('invalid completed 4h range')
+    if not manifest['series'] or not manifest['source'].strip():
+        raise ValueError('source and nonempty series are required')
+    # Validate ALL source coverage locally before allocating a paid GPU.
+    for series in manifest['series']:
+        index = index_candles(series['candles'])
+        for cutoff in range(start,end,STEP):
+            window(index,cutoff)
     # Each invocation reserves its entire budget. Caller must enforce aggregate cap.
     if not resume:
         with results.batch_upload(force=False) as upload:
