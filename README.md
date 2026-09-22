@@ -28,7 +28,7 @@ Without an inference endpoint, the site shows actual market data and a model-una
 | `POST /v1/trading/decisions` | Bearer-authenticated market research stance |
 | `GET /v1/models` | Actual model identity |
 | `GET /openapi.json` | API discovery and request schemas |
-| Website `/` | BTC/ETH/SOL/XRP/DOGE/ADA/AVAX/LINK/DOT/LTC × 15m/1h/4h charts and shareable decisions |
+| Website `/` | Global-volume top 10 snapshot × 15m/1h/4h charts and shareable decisions |
 | `GET /healthz` | Gateway liveness without waking the GPU |
 
 Use `Qwen/Qwen3.5-4B` as the client model. This preserves TypeSafe's wire format, not Jev's weights or calibration. Chat completions are not implemented. See [API semantics and examples](docs/api.md).
@@ -58,3 +58,5 @@ PYTHONPATH=inference inference/.venv/bin/pytest inference/tests
 Tests inject explicit test engines; production has no mock-model setting. Deployment checks separately verify real model revision/logits, market cutoffs, share links and browser behavior.
 
 Earlier [vendor comparisons](docs/provider-landscape.md) and [serving research](docs/serving.md) predate the selected **Qwen3.5-4B + Modal** configuration. They are historical research, not current deployment instructions or approval to purchase training.
+
+The coin picker uses the [dated CoinGecko global 24-hour USD volume snapshot](docs/volume-ranking.json), excluding its stablecoin category: BTC, ETH, XRP, SOL, DOGE, BNB, SUI, NEAR, PEPE, ZEC. This is a fixed snapshot with its timestamp visible in the UI, not an automatically refreshed ranking. Chart and inference inputs remain Kraken USD spot candles. Previously shared ADA/AVAX/LINK/DOT/LTC results remain supported.

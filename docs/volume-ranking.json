@@ -1,0 +1,81 @@
+{
+  "source": "CoinGecko /coins/markets order=volume_desc, vs_currency=usd",
+  "sourceUrl": "https://www.coingecko.com/en/highlights/high-volume",
+  "stablecoinCategory": "https://www.coingecko.com/en/categories/stablecoins",
+  "asOf": "2026-09-22T08:38:10.000Z",
+  "selection": "Global reported 24h USD trading volume, excluding CoinGecko stablecoins category; snapshot, not automatic refresh",
+  "excludedStablecoinIds": [
+    "tether",
+    "usd-coin",
+    "usd1-wlfi",
+    "global-dollar",
+    "ripple-usd",
+    "first-digital-usd",
+    "united-stables",
+    "usds",
+    "dai",
+    "ethena-usde"
+  ],
+  "coins": [
+    {
+      "id": "bitcoin",
+      "symbol": "btc",
+      "name": "Bitcoin",
+      "total_volume": 61019473444
+    },
+    {
+      "id": "ethereum",
+      "symbol": "eth",
+      "name": "Ethereum",
+      "total_volume": 24820360582
+    },
+    {
+      "id": "ripple",
+      "symbol": "xrp",
+      "name": "XRP",
+      "total_volume": 6852329827
+    },
+    {
+      "id": "solana",
+      "symbol": "sol",
+      "name": "Solana",
+      "total_volume": 6641995999
+    },
+    {
+      "id": "dogecoin",
+      "symbol": "doge",
+      "name": "Dogecoin",
+      "total_volume": 3383160173
+    },
+    {
+      "id": "binancecoin",
+      "symbol": "bnb",
+      "name": "BNB",
+      "total_volume": 1825976169
+    },
+    {
+      "id": "sui",
+      "symbol": "sui",
+      "name": "Sui",
+      "total_volume": 1801184543
+    },
+    {
+      "id": "near",
+      "symbol": "near",
+      "name": "NEAR Protocol",
+      "total_volume": 1674161640
+    },
+    {
+      "id": "pepe",
+      "symbol": "pepe",
+      "name": "Pepe",
+      "total_volume": 1522446010
+    },
+    {
+      "id": "zcash",
+      "symbol": "zec",
+      "name": "Zcash",
+      "total_volume": 1339382363
+    }
+  ]
+}

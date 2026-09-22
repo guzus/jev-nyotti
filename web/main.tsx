@@ -29,12 +29,22 @@ type Decision = {
   latencyMs: number; cached: boolean;
   scores?: Record<Action, number>; scoreType: 'model_relative_likelihood' | 'not_available';
 };
-const ASSETS: { symbol: SymbolCode; code: string; name: string; icon: string }[] = [
+type Asset = { symbol: SymbolCode; code: string; name: string; icon: string };
+// Dated CoinGecko global-volume snapshot; see docs/volume-ranking.json.
+const ASSETS: Asset[] = [
   { symbol: 'BTCUSD', code: 'BTC', name: 'Bitcoin', icon: '₿' },
   { symbol: 'ETHUSD', code: 'ETH', name: 'Ethereum', icon: 'Ξ' },
-  { symbol: 'SOLUSD', code: 'SOL', name: 'Solana', icon: '◎' },
   { symbol: 'XRPUSD', code: 'XRP', name: 'XRP', icon: 'X' },
+  { symbol: 'SOLUSD', code: 'SOL', name: 'Solana', icon: '◎' },
   { symbol: 'DOGEUSD', code: 'DOGE', name: 'Dogecoin', icon: 'Ð' },
+  { symbol: 'BNBUSD', code: 'BNB', name: 'BNB', icon: 'B' },
+  { symbol: 'SUIUSD', code: 'SUI', name: 'Sui', icon: 'S' },
+  { symbol: 'NEARUSD', code: 'NEAR', name: 'NEAR Protocol', icon: 'N' },
+  { symbol: 'PEPEUSD', code: 'PEPE', name: 'Pepe', icon: 'P' },
+  { symbol: 'ZECUSD', code: 'ZEC', name: 'Zcash', icon: 'Z' },
+];
+// Preserve the identity and chart for previously published share links.
+const LEGACY_ASSETS: Asset[] = [
   { symbol: 'ADAUSD', code: 'ADA', name: 'Cardano', icon: 'A' },
   { symbol: 'AVAXUSD', code: 'AVAX', name: 'Avalanche', icon: 'A' },
   { symbol: 'LINKUSD', code: 'LINK', name: 'Chainlink', icon: 'L' },
@@ -48,7 +58,7 @@ const ACTIONS = {
 };
 // Korean market convention: rising = red, falling = blue. Mirrors the CSS custom properties.
 const CHART = { up: '#bd3425', down: '#2058c7', grid: '#ebe6dc', tick: '#736c60', cursor: '#b8b1a3' };
-const priceDigits = (value: number) => value < 1 ? 6 : value < 10 ? 4 : 2;
+const priceDigits = (value: number) => value < 0.0001 ? 10 : value < 0.01 ? 8 : value < 1 ? 6 : value < 10 ? 4 : 2;
 const currency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: priceDigits(value) }).format(value);
 const number = (value: number, digits = 2) => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: digits }).format(value);
 const clock = (value: string) => {
@@ -79,7 +89,7 @@ function PriceChart({ candles, interval, trend }: { candles: Candle[]; interval:
         <defs><linearGradient id="price-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.18} /><stop offset="100%" stopColor={color} stopOpacity={0} /></linearGradient></defs>
         <CartesianGrid vertical={false} stroke={CHART.grid} />
         <XAxis dataKey="time" axisLine={false} tickLine={false} minTickGap={56} tick={{ fill: CHART.tick, fontSize: 11 }} tickMargin={12} tickFormatter={(value: number) => new Intl.DateTimeFormat('ko-KR', interval === 15 ? { hour: '2-digit', minute: '2-digit', hour12: false } : { month: 'numeric', day: 'numeric' }).format(value * 1000)} />
-        <YAxis orientation="right" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: CHART.tick, fontSize: 11 }} tickMargin={8} width={64} tickFormatter={(value: number) => number(value, value < 100 ? priceDigits(value) : 0)} />
+        <YAxis orientation="right" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: CHART.tick, fontSize: 11 }} tickMargin={8} width={candles.at(-1)!.close < 0.0001 ? 88 : 64} tickFormatter={(value: number) => number(value, value < 100 ? priceDigits(value) : 0)} />
         <Tooltip content={({ active, payload }) => {
           const candle = payload?.[0]?.payload as Candle | undefined;
           if (!active || !candle) return null;
@@ -107,7 +117,7 @@ function App() {
   const [copyState, setCopyState] = useState('');
   const analyzeAbort = useRef<AbortController | null>(null);
   const sharedAbort = useRef<AbortController | null>(null);
-  const asset = ASSETS.find((item) => item.symbol === symbol)!;
+  const asset = [...ASSETS, ...LEGACY_ASSETS].find((item) => item.symbol === symbol)!;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -206,6 +216,7 @@ function App() {
 
     <main>
       <h1 className="sr-only">jev뇨띠 시장 분석</h1>
+      <p className="ranking-note"><a href="https://www.coingecko.com/en/highlights/high-volume" target="_blank" rel="noopener noreferrer">CoinGecko 글로벌 24h 거래대금 TOP 10</a><span>스테이블 제외 · <time dateTime="2026-09-22T08:38:10Z">2026. 9. 22. 17:38 KST</time> 기준</span></p>
       <div className="market-bar">
         <div className="segmented asset-tabs" role="group" aria-label="거래 종목 선택">{ASSETS.map((item) => <button key={item.symbol} type="button" aria-pressed={symbol === item.symbol} onClick={() => changeMarket(item.symbol, interval)}><span className={`coin coin-${item.code.toLowerCase()}`} aria-hidden="true">{item.icon}</span>{item.code}</button>)}</div>
         <div className="segmented interval-tabs" role="group" aria-label="차트 시간 간격">{([15, 60, 240] as Interval[]).map((item) => <button key={item} type="button" aria-pressed={item === interval} onClick={() => changeMarket(symbol, item)}>{intervalLabel(item)}</button>)}</div>

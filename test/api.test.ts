@@ -55,7 +55,7 @@ test('expanded markets validate and Dogecoin uses the correct Kraken pair',async
     urls.push(String(input));
     return new Response(JSON.stringify(marketFixture()),{status:200});
   }) as typeof fetch);
-  for(const symbol of ['XRPUSD','DOGEUSD','ADAUSD','AVAXUSD','LINKUSD','DOTUSD','LTCUSD']) {
+  for(const symbol of ['XRPUSD','DOGEUSD','ADAUSD','AVAXUSD','LINKUSD','DOTUSD','LTCUSD','BNBUSD','SUIUSD','NEARUSD','PEPEUSD','ZECUSD']) {
     const q=tradeSchema.parse({symbol,interval:15});
     const value=await read(q);
     assert.equal(value.symbol,symbol);assert.equal(value.candles.length,96);

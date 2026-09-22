@@ -242,3 +242,6 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
   .market-bar { flex-wrap: wrap; }
   .market-bar > .asset-tabs { flex-basis: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+
+.ranking-note { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 12px; color: var(--ink-3); font-size: 11px; line-height: 1.6; }
+.ranking-note a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
