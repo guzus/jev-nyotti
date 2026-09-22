@@ -282,6 +282,7 @@ function App() {
         <nav className="project-links" aria-label="프로젝트 링크">
           <a href="https://github.com/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="GitHub 소스 코드 (새 탭)"><Github className="project-logo" size={17} aria-hidden="true" />GitHub<ArrowUpRight size={13} aria-hidden="true" /></a>
           <a href="https://huggingface.co/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="Hugging Face 학습 어댑터 (새 탭)"><img className="project-logo" src="/huggingface.svg" width="19" height="18" alt="" />Hugging Face<ArrowUpRight size={13} aria-hidden="true" /></a>
+          <a href="https://x.com/uncanny_guzus/status/2102341117232693582" target="_blank" rel="noopener noreferrer" aria-label="Release tweet (opens in a new tab)">Release tweet<ArrowUpRight size={13} aria-hidden="true" /></a>
         </nav>
         <span>DYOR NFA</span>
       </div>
