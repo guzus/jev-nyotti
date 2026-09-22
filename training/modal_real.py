@@ -147,7 +147,10 @@ def main(dataset_dir: str):
         raise
     finally:
         call.cancel(terminate_containers=True)
-    print(json.dumps(report, indent=2), flush=True)
+    summary_keys = ("run_id", "status", "completed_steps", "child_process_elapsed_seconds",
+                    "baseline", "after", "reload_status", "reload_max_logit_difference",
+                    "gpu_cost_estimate_usd", "planned_compute_ceiling_usd", "production_promoted")
+    print(json.dumps({key: report[key] for key in summary_keys if key in report}, indent=2), flush=True)
     print(f"Local report: {output / 'report.json'}", flush=True)
     if report.get("status") != "passed":
         raise RuntimeError("pilot failed; preserved report in local runtime directory and artifact volume")

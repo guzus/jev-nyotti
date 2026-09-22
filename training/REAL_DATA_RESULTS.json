@@ -1,0 +1,549 @@
+{
+  "run_id": "cd8911d3b400405a894c93ea437855cc",
+  "dataset_id": "e4555b73ab5e4194",
+  "task": "NEXT_HOUR_POSITION_SIDE",
+  "model": "Qwen/Qwen3.5-4B",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+  "status": "passed",
+  "reload_status": "passed",
+  "production_promoted": false,
+  "child_process_elapsed_seconds": 1063.286149876,
+  "gpu_cost_estimate_usd": 1.1664249064139722,
+  "provenance": "sanitized_user_supplied_executions_with_official_historical_candles",
+  "dataset_files": {
+    "train.jsonl": {
+      "sha256": "0188fdf54639f441ea987140f4d1e93c85c361dfc38c438b16fa94058211fa59",
+      "bytes": 14734870
+    },
+    "validation.jsonl": {
+      "sha256": "f0eaf8ef72f50a0f2747592078b937acdae2105f0f45a4a3a0989941d72c6517",
+      "bytes": 471187
+    },
+    "test.jsonl": {
+      "sha256": "33bf6f91444f498bb551957e019749d0bee9591402260f3082c965a32ccb5458",
+      "bytes": 469186
+    }
+  },
+  "splits": {
+    "train": {
+      "count": 4096,
+      "labels": {
+        "flat": 299,
+        "long": 1366,
+        "short": 2431
+      }
+    },
+    "validation": {
+      "count": 128,
+      "labels": {
+        "short": 95,
+        "long": 33
+      }
+    },
+    "test": {
+      "count": 128,
+      "labels": {
+        "long": 70,
+        "short": 58
+      }
+    }
+  },
+  "training_method": "BF16 LoRA rank16; next-hour position-side imitation; single answer token",
+  "requested_steps": 1024,
+  "batch_size": 2,
+  "gradient_accumulation": 2,
+  "cost_note": "GPU estimate excludes preparation, startup, CPU/RAM/storage; not an invoice.",
+  "limitations": [
+    "Position imitation, not profitability or causal trading policy evaluation.",
+    "Test split is fixed; no test-based tuning or promotion.",
+    "Reload validation uses training runtime; production compatibility untested."
+  ],
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "trainable_parameters": 32464896,
+  "min_input_tokens": 1883,
+  "max_input_tokens": 2021,
+  "packages": {
+    "unsloth": "2026.9.7",
+    "unsloth_zoo": "2026.9.6",
+    "torch": "2.8.0",
+    "transformers": "5.5.0",
+    "peft": "0.18.1"
+  },
+  "baseline": {
+    "validation": {
+      "count": 128,
+      "accuracy": 0.9453125,
+      "macro_f1": 0.6211902042887959,
+      "per_class": {
+        "long": {
+          "precision": 0.8421052631578947,
+          "recall": 0.9696969696969697,
+          "f1": 0.9014084507042254,
+          "support": 33
+        },
+        "short": {
+          "precision": 0.9888888888888889,
+          "recall": 0.9368421052631579,
+          "f1": 0.9621621621621621,
+          "support": 95
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          32,
+          1,
+          0
+        ],
+        [
+          6,
+          89,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 128,
+        "accuracy": 0.984375,
+        "macro_f1": 0.653056884635832,
+        "per_class": {
+          "long": {
+            "precision": 0.9696969696969697,
+            "recall": 0.9696969696969697,
+            "f1": 0.9696969696969697,
+            "support": 33
+          },
+          "short": {
+            "precision": 0.9894736842105263,
+            "recall": 0.9894736842105263,
+            "f1": 0.9894736842105263,
+            "support": 95
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            32,
+            1,
+            0
+          ],
+          [
+            1,
+            94,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 2,
+        "accuracy": 0.0,
+        "persistence_accuracy": 0.0
+      }
+    },
+    "test": {
+      "count": 128,
+      "accuracy": 0.96875,
+      "macro_f1": 0.6455026455026455,
+      "per_class": {
+        "long": {
+          "precision": 0.9459459459459459,
+          "recall": 1.0,
+          "f1": 0.9722222222222222,
+          "support": 70
+        },
+        "short": {
+          "precision": 1.0,
+          "recall": 0.9310344827586207,
+          "f1": 0.9642857142857143,
+          "support": 58
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          70,
+          0,
+          0
+        ],
+        [
+          4,
+          54,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 128,
+        "accuracy": 0.9921875,
+        "macro_f1": 0.6614040497481756,
+        "per_class": {
+          "long": {
+            "precision": 0.9859154929577465,
+            "recall": 1.0,
+            "f1": 0.9929078014184397,
+            "support": 70
+          },
+          "short": {
+            "precision": 1.0,
+            "recall": 0.9827586206896551,
+            "f1": 0.9913043478260869,
+            "support": 58
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            70,
+            0,
+            0
+          ],
+          [
+            1,
+            57,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 1,
+        "accuracy": 0.0,
+        "persistence_accuracy": 0.0
+      }
+    }
+  },
+  "completed_steps": 1024,
+  "adapter_tensors_changed": 496,
+  "training_seconds": 882.604338833,
+  "training_peak_allocated_vram_gib": 10.08651351928711,
+  "first_10_mean_loss": 0.4432738437663829,
+  "last_10_mean_loss": 0.13395437034778296,
+  "adapter_files": {
+    "README.md": {
+      "bytes": 5194,
+      "sha256": "c5ab72df7c280bbf9451a896920daebd91d386fa42ee959df2aaf4958e17f85e"
+    },
+    "adapter_config.json": {
+      "bytes": 1621,
+      "sha256": "f1c912939ccb51419345f73c9b899b69a52608d07128c9322468ff2e190a3be7"
+    },
+    "adapter_model.safetensors": {
+      "bytes": 129934448,
+      "sha256": "918fdcd054e3d77116ddb7b708cc7c2a24aa443696f4639bd103408777051831"
+    },
+    "chat_template.jinja": {
+      "bytes": 7756,
+      "sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715"
+    },
+    "tokenizer.json": {
+      "bytes": 19989343,
+      "sha256": "87a7830d63fcf43bf241c3c5242e96e62dd3fdc29224ca26fed8ea333db72de4"
+    },
+    "tokenizer_config.json": {
+      "bytes": 1099,
+      "sha256": "5c5d35fa571bff9b1687a906a1f96756f44b8aae45381b5be94a2d66f6836546"
+    }
+  },
+  "after": {
+    "validation": {
+      "count": 128,
+      "accuracy": 0.984375,
+      "macro_f1": 0.653056884635832,
+      "per_class": {
+        "long": {
+          "precision": 0.9696969696969697,
+          "recall": 0.9696969696969697,
+          "f1": 0.9696969696969697,
+          "support": 33
+        },
+        "short": {
+          "precision": 0.9894736842105263,
+          "recall": 0.9894736842105263,
+          "f1": 0.9894736842105263,
+          "support": 95
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          32,
+          1,
+          0
+        ],
+        [
+          1,
+          94,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 128,
+        "accuracy": 0.984375,
+        "macro_f1": 0.653056884635832,
+        "per_class": {
+          "long": {
+            "precision": 0.9696969696969697,
+            "recall": 0.9696969696969697,
+            "f1": 0.9696969696969697,
+            "support": 33
+          },
+          "short": {
+            "precision": 0.9894736842105263,
+            "recall": 0.9894736842105263,
+            "f1": 0.9894736842105263,
+            "support": 95
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            32,
+            1,
+            0
+          ],
+          [
+            1,
+            94,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 2,
+        "accuracy": 0.0,
+        "persistence_accuracy": 0.0
+      }
+    },
+    "test": {
+      "count": 128,
+      "accuracy": 0.9921875,
+      "macro_f1": 0.6614040497481756,
+      "per_class": {
+        "long": {
+          "precision": 0.9859154929577465,
+          "recall": 1.0,
+          "f1": 0.9929078014184397,
+          "support": 70
+        },
+        "short": {
+          "precision": 1.0,
+          "recall": 0.9827586206896551,
+          "f1": 0.9913043478260869,
+          "support": 58
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          70,
+          0,
+          0
+        ],
+        [
+          1,
+          57,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 128,
+        "accuracy": 0.9921875,
+        "macro_f1": 0.6614040497481756,
+        "per_class": {
+          "long": {
+            "precision": 0.9859154929577465,
+            "recall": 1.0,
+            "f1": 0.9929078014184397,
+            "support": 70
+          },
+          "short": {
+            "precision": 1.0,
+            "recall": 0.9827586206896551,
+            "f1": 0.9913043478260869,
+            "support": 58
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            70,
+            0,
+            0
+          ],
+          [
+            1,
+            57,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 1,
+        "accuracy": 0.0,
+        "persistence_accuracy": 0.0
+      }
+    }
+  },
+  "adapter_tensor_dtypes": [
+    "torch.float32"
+  ],
+  "memory_tensor_sha256": "c7665cf5bd83b3c340fdce28bf7d0d2d686ac2a7c322b3a009e21a0295051e00",
+  "saved_tensor_sha256": "c7665cf5bd83b3c340fdce28bf7d0d2d686ac2a7c322b3a009e21a0295051e00",
+  "saved_tensor_bytes_identical": true,
+  "reloaded_tensor_bytes_identical": true,
+  "reloaded_tensor_sha256": "c7665cf5bd83b3c340fdce28bf7d0d2d686ac2a7c322b3a009e21a0295051e00",
+  "reload_cases": 12,
+  "reload_max_logit_difference": 0.0,
+  "reload_predictions_identical": true,
+  "planned_compute_ceiling_usd": 2.2283640000000005,
+  "source_report_sha256": "c3979154b4b0c61ac34879887403e3bd59aecf57915420ae564ebcd88eaa1d88",
+  "steady_step_median_seconds": 0.7623221000000058,
+  "preparation_seconds": 55.192891120910645,
+  "configured_resource_compute_estimate_usd": 1.2996131153751873,
+  "compute_estimate_note": "Published rates applied to child runtime and CPU preparation. Excludes startup/shutdown, first failed CPU startup, image/storage and usage above requested resources; not an invoice. Authorized total pilot budget: USD5.",
+  "modal_app": {
+    "id": "ap-qqG8lOosYZv5QiX0RaR9Hy",
+    "state": "stopped",
+    "tasks": 0,
+    "stopped_at": "2026-09-22T18:36:43+09:00"
+  },
+  "prior_attempt": {
+    "id": "ap-9Thbqc4Tq95qWV2JismeF3",
+    "reason": "CPU worker could not import local training package; fixed image/imports before GPU allocation",
+    "state": "stopped",
+    "tasks": 0,
+    "stopped_at": "2026-09-22T18:17:22+09:00",
+    "gpu_dispatched": false
+  },
+  "interpretation": "Pipeline/export verified. Held-out performance equals previous-position persistence; no demonstrated incremental trading signal or profitability. No production promotion.",
+  "local_adapter_download_verified": {
+    "files": 6,
+    "sha256_and_sizes_match": true,
+    "bytes": 149939461
+  }
+}

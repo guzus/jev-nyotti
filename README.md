@@ -2,7 +2,7 @@
 
 [Live website](https://jevtrade.up.railway.app) · [API schema](https://jevtrade.up.railway.app/openapi.json)
 
-Qwen3.5-4B 실제 logits를 사용하는 **TypeSafe/Jev 호환 API**와 한국어 시장 분석 웹사이트. Railway는 웹·API를, Modal L4는 모델을 서빙합니다. 현재는 추가 학습 전 기본 모델이며 **워뇨띠 매매내역을 입수하거나 학습하지 않았습니다.** 주문 실행 기능은 없습니다.
+Qwen3.5-4B 실제 logits를 사용하는 **TypeSafe/Jev 호환 API**와 한국어 시장 분석 웹사이트. Railway는 웹·API를, Modal L4는 모델을 서빙합니다. 현재 공개 서비스는 추가 학습 전 **기본 모델**을 사용합니다. 사용자가 제공한 AOA 매매내역으로 별도의 [BTC 포지션 모방 파일럿](training/REAL_DATA.md)을 진행하며, 이 어댑터는 공개 서비스에 적용하지 않습니다. 원본의 거래자 신원은 독립적으로 검증하지 않았습니다. 주문 실행 기능은 없습니다.
 
 ![Runtime architecture](diagrams/runtime.png)
 
@@ -42,7 +42,7 @@ Use `Qwen/Qwen3.5-4B` as the client model. This preserves TypeSafe's wire format
 - SQLite on Railway retains shares for 30 days and enforces persistent daily quotas. Identical snapshots are cached/coalesced across visitors and survive deploys. The page automatically shows an existing result for the current candles; a page view never starts inference. New candles or a changed model revision require a new, explicitly requested analysis. Keep one Railway replica.
 - Deployment cap: 100 classification questions/day, 3 **new** public analyses/IP/minute. Cache hits and requests joining an existing analysis consume neither inference quota; HTTP reads have separate rate limits. Failed upstream calls consume the allowance too. This is **not a dollar spending cap**. GPU idle time, CPU/memory and storage can consume credit; Railway billing is separate.
 
-[Synthetic training rehearsal](training/README.md) · [Deployment and recovery](docs/deployment.md) · [Inference service](inference/README.md) · [Future dataset/evaluation plan](docs/experiment.md)
+[Training: real-data pilot and rehearsal](training/README.md) · [Deployment and recovery](docs/deployment.md) · [Inference service](inference/README.md) · [Future dataset/evaluation plan](docs/experiment.md)
 
 ## Verify
 
