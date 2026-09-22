@@ -1,0 +1,43 @@
+{
+  "hf_repository": "guzus/jev-nyotti",
+  "hf_revision": "73867def94f8b062700ad3f8d63128b4e1c9b1d4",
+  "hf_public": true,
+  "verified_payload_files": 8,
+  "checksums_file_verified": true,
+  "github_repository": "guzus/jev-nyotti",
+  "github_public": true,
+  "files": {
+    "adapter_model.safetensors": {
+      "bytes": 129934448,
+      "sha256": "918fdcd054e3d77116ddb7b708cc7c2a24aa443696f4639bd103408777051831"
+    },
+    "LICENSE": {
+      "bytes": 11544,
+      "sha256": "bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a"
+    },
+    "tokenizer_config.json": {
+      "bytes": 1099,
+      "sha256": "5c5d35fa571bff9b1687a906a1f96756f44b8aae45381b5be94a2d66f6836546"
+    },
+    "tokenizer.json": {
+      "bytes": 19989343,
+      "sha256": "87a7830d63fcf43bf241c3c5242e96e62dd3fdc29224ca26fed8ea333db72de4"
+    },
+    "README.md": {
+      "bytes": 5761,
+      "sha256": "87cc5d90f3b653bc8eb7f617f5fac7b6ed71e51dcbaf447e2ab45c98f7960bef"
+    },
+    "adapter_config.json": {
+      "bytes": 1621,
+      "sha256": "f1c912939ccb51419345f73c9b899b69a52608d07128c9322468ff2e190a3be7"
+    },
+    "chat_template.jinja": {
+      "bytes": 7756,
+      "sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715"
+    },
+    "evaluation.json": {
+      "bytes": 9450,
+      "sha256": "0db4b4e5ec01aea3b86974ca7a2014c6bea88b3d9ba078760a2f1df171064322"
+    }
+  }
+}

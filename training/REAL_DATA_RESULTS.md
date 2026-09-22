@@ -36,6 +36,6 @@ The first attempt stopped during CPU preparation because the remote module lacke
 - [Completed pilot](https://modal.com/apps/storminggalaxys4/main/ap-qqG8lOosYZv5QiX0RaR9Hy): stopped at 18:36:43 KST.
 - Initial CPU attempt `ap-9Thbqc4Tq95qWV2JismeF3`: stopped at 18:17:22 KST; no GPU dispatched.
 
-The private adapter is stored in Modal Volume `jev-qwen-real-pilot-artifacts`, under `cd8911d3b400405a894c93ea437855cc/adapter/`, and downloaded locally under the ignored `.runtime/training/` directory. Raw CSVs, example rows and model weights are not committed to git.
+The adapter is publicly released at [guzus/jev-nyotti on Hugging Face](https://huggingface.co/guzus/jev-nyotti), revision `73867def94f8b062700ad3f8d63128b4e1c9b1d4`. The [model card](HUGGINGFACE_MODEL_CARD.md) explains its task and limitations. A private run copy is retained in Modal Volume `jev-qwen-real-pilot-artifacts`, under `cd8911d3b400405a894c93ea437855cc/adapter/`, and downloaded locally under the ignored `.runtime/training/` directory. Raw CSVs, example rows and model weights are not committed to git.
 
 Before spending on a larger run, redesign the task and evaluation around exposure transitions with enough held-out transition cases, while retaining a naturally sampled evaluation to measure false signals. A controlled next experiment can test prior-position ablation and event-focused training; do not repeatedly tune against this test set.

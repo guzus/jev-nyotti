@@ -1,6 +1,6 @@
 # Deployment and recovery
 
-Topology: Railway Node 24 web/API + `/data` volume; Modal L4 classifier + model-cache volume. GitHub source is private. Exchange credentials are unnecessary.
+Topology: Railway Node 24 web/API + `/data` volume; Modal L4 classifier + model-cache volume. GitHub source is public at [`guzus/jev-nyotti`](https://github.com/guzus/jev-nyotti). Raw training data and runtime credentials are excluded from git. Exchange credentials are unnecessary.
 
 ## Modal
 
@@ -15,7 +15,7 @@ The endpoint requires both `Modal-Key`/`Modal-Secret` and `Authorization: Bearer
 
 ## Railway configuration
 
-Project `jev-trading-research`, service `jev-trading-web`, production environment. Build the root Dockerfile. Use `railway.json`, one replica and one `/data` volume.
+Project `jev-trading-research`, service `jev-trading-web`, production environment. GitHub source: `guzus/jev-nyotti`, branch `main` (the Railway project name is unchanged). Build the root Dockerfile. Use `railway.json`, one replica and one `/data` volume.
 
 ```text
 NODE_ENV=production

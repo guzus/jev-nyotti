@@ -269,7 +269,16 @@ function App() {
         </aside>
       </div>
     </main>
-    <footer><span>Qwen3.5-4B 기본 모델 · 워뇨띠 거래내역 미학습</span><span>DYOR NFA</span></footer>
+    <footer>
+      <span>Qwen3.5-4B 기본 모델 서빙 중</span>
+      <div className="footer-resources">
+        <nav className="project-links" aria-label="프로젝트 링크">
+          <a href="https://github.com/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="GitHub 소스 코드 (새 탭)">GitHub<ArrowUpRight size={13} aria-hidden="true" /></a>
+          <a href="https://huggingface.co/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="Hugging Face 학습 어댑터 (새 탭)">Hugging Face<ArrowUpRight size={13} aria-hidden="true" /></a>
+        </nav>
+        <span>DYOR NFA</span>
+      </div>
+    </footer>
   </>;
 }
 
