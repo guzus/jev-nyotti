@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ArrowDownLeft, ArrowUpRight, Clock3, Copy, Link2, LoaderCircle,
-  Minus, RefreshCw,
+  Minus, RefreshCw, Github,
 } from 'lucide-react';
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -280,8 +280,8 @@ function App() {
       <span>{status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 Qwen3.5-4B · 교육용' : status ? 'Qwen3.5-4B 기본 모델 서빙 중' : '모델 연결 확인 중'}</span>
       <div className="footer-resources">
         <nav className="project-links" aria-label="프로젝트 링크">
-          <a href="https://github.com/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="GitHub 소스 코드 (새 탭)">GitHub<ArrowUpRight size={13} aria-hidden="true" /></a>
-          <a href="https://huggingface.co/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="Hugging Face 학습 어댑터 (새 탭)">Hugging Face<ArrowUpRight size={13} aria-hidden="true" /></a>
+          <a href="https://github.com/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="GitHub 소스 코드 (새 탭)"><Github className="project-logo" size={17} aria-hidden="true" />GitHub<ArrowUpRight size={13} aria-hidden="true" /></a>
+          <a href="https://huggingface.co/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="Hugging Face 학습 어댑터 (새 탭)"><img className="project-logo" src="/huggingface.svg" width="19" height="18" alt="" />Hugging Face<ArrowUpRight size={13} aria-hidden="true" /></a>
         </nav>
         <span>DYOR NFA</span>
       </div>
