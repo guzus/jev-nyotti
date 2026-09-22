@@ -8,6 +8,7 @@ import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import './styles.css';
+import { Performance } from './performance.js';
 import { startAnalytics } from './analytics.js';
 
 type SymbolCode = import('../server/contracts.js').TradeRequest['symbol'];
@@ -273,6 +274,7 @@ function App() {
           {renderCacheStatus()}
         </aside>
       </div>
+      <Performance />
     </main>
     <footer>
       <span>{status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 Qwen3.5-4B · 교육용' : status ? 'Qwen3.5-4B 기본 모델 서빙 중' : '모델 연결 확인 중'}</span>

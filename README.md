@@ -62,3 +62,13 @@ Tests inject explicit test engines; production has no mock-model setting. Deploy
 Earlier [vendor comparisons](docs/provider-landscape.md) and [serving research](docs/serving.md) predate the selected **Qwen3.5-4B + Modal** configuration. They are historical research, not current deployment instructions or approval to purchase training.
 
 The coin picker uses the [dated CoinGecko global 24-hour USD volume snapshot](docs/volume-ranking.json), excluding its stablecoin category: BTC, ETH, XRP, SOL, DOGE, BNB, SUI, NEAR, PEPE, ZEC. This is a fixed snapshot with its timestamp visible in the UI, not an automatically refreshed ranking. Chart and inference inputs remain Kraken USD spot candles. Previously shared ADA/AVAX/LINK/DOT/LTC results remain supported.
+
+### Historical PnL
+
+The homepage reads `GET /api/performance`. No historical inference is triggered by this endpoint. Until an operator imports a real replay, it returns `status: pending` and the UI displays no invented return.
+
+Build, then run `node dist/server/pnl-import.js INPUT.json /data` on the service filesystem to atomically publish `pnl-report.json`. Keep raw inputs outside git. Input has `model`, pinned `revision`, ISO `generatedAt`, `source`, `priorPolicy: "previous_prediction"`, and `series`. Each series contains a unique `symbol`, hourly `decisions` (`marketAsOf`, `action`, `previousAction`) and matching execution `candles` (`time` in UNIX seconds, OHLC and volume). The decision cutoff is the preceding input candle close and the execution candle open. The importer requires a contiguous common range, starts flat, and validates the entire prior-position chain. Publication time must follow the final candle close. This CLI does not generate decisions.
+
+Defaults: $10,000 split equally at inception, entry notional capped at sleeve equity, quantity retained until the side changes, 5 bps fee and 2 bps adverse slippage per fill. Funding, borrowing, liquidation and terminal closing costs are not modeled; insolvency is rejected. Curves use hourly closing marks. Buy-and-hold includes entry costs on the same capital/range. These are retrospective simulations, not executed trades or guaranteed out-of-sample results.
+
+The five-year ten-symbol backfill has **not run**. Coins without a complete common history need an explicit availability/cash-allocation policy before portfolio import; never synthesize pre-listing prices. Live cached decisions assume a flat prior and must not be relabeled as a carried-position replay. Production has no synthetic PnL fixture.

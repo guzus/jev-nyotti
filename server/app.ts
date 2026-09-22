@@ -1,3 +1,4 @@
+import { performanceReader } from './performance.js';
 import express,{type Request,type Response,type NextFunction} from 'express';
 import helmet from 'helmet';
 import { createHash,createHmac,randomUUID,timingSafeEqual } from 'node:crypto';
@@ -87,6 +88,8 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
 
   const scheduler=createScheduler(config,store,analyze,deps.now);
 
+  const readPerformance=performanceReader(config.dataDir);
+  app.get('/api/performance',limit('performance',60),async(_req,res)=>{res.setHeader('Cache-Control','no-store');res.json(await readPerformance());});
   app.get('/healthz',(_req,res)=>res.json({status:'ok',service:'jev-trading-gateway'}));
   app.get('/api/status',(_req,res)=>res.json({model:config.modelId,revision:config.modelRevision,trainingStatus:config.trainingStatus,
     providerConfigured:scorer.configured,apiAuthRequired:true,inferenceMode:scorer.configured?'live':'unconfigured',
