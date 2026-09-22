@@ -8,6 +8,8 @@ The original 4,096-row training sample contained 173 changes (4.2%). Only 29 exa
 
 The live prompt supplies a flat prior on every call. Historical replay starts flat and carries model predictions forward. Copying the prior therefore creates an absorbing flat state. The source task predicts actual hourly BitMEX BTC exposure; inference additionally changes exchange, volume units, asset, dates and holding cadence. None of those transfers was validated by the original accuracy result. Hourly exposure labels also discard intrahour round trips and size changes, so a trade execution count is not a position-label transition count.
 
+Additional source audit: among 5,441 hours with position-changing timestamps, 4,261 (78.3%) end with the same exposure side they started with. 1,948 contain both buys and sells, and 472 return to the initial side despite an intrahour side change. Thus “unchanged side” often hides substantial trading activity; balancing endpoint labels cannot recover the omitted size/timing information. Simultaneous fills are aggregated in these counts.
+
 ## Fixed experiment
 
 `transition_data.py` builds a new task, `NEXT_HOUR_POSITION_SIDE_MARKET_ONLY_V2`, from the same reconciled BTC source. It removes previous exposure from the model input and explicitly describes it as unavailable. Actual previous exposure remains outside the prompt solely for evaluation; it is never falsified or overwritten with a hypothetical position.
@@ -46,3 +48,24 @@ Use Python 3.11+ with the inference validation dependencies and Modal installed.
 The first corrective attempt (`v2-26a1d18dae1040f8864a946f5c1bb299`) completed the base-model evaluation at 144.84 child-process seconds but was stopped when the attached local client disconnected. No optimizer step or replacement adapter was confirmed. Its partial report is not a successful training result. The replay was separately stopped at 7,100 saved decisions; the inspected 6,590-decision snapshot is a subset, not the full stopped checkpoint.
 
 A further **$10** was explicitly authorized for correction. The next attempt reserves **$2** of that allowance; there are no automatic additional experiments. Deploy the bounded function first, then use `--background` so dispatch targets the deployed function. The short local dispatcher uploads verified inputs, persists the call ID, and exits. It does not wait for or cancel the remote call. Retrieve results using that call ID or the private artifact volume. Completion does not publish or promote the adapter.
+
+
+## Measured outcome — 2026-09-23
+
+**Training/export succeeded, but the diagnostic behavior screen failed. No model promotion or replay restart.** [Aggregate results](TRANSITION_DIAGNOSTIC_RESULTS.json).
+
+| Natural validation (256 hours) | Base, market-only prompt | Corrective LoRA |
+|---|---:|---:|
+| Exposure-side accuracy | 28.13% | 71.48% |
+| Macro-F1 (3 predefined classes) | 0.1874 | 0.3469 |
+| Long / short / flat predictions | 205 / 50 / 1 | 35 / 221 / 0 |
+| False changes on actually unchanged hours | 71.31% | 28.69% |
+| Correct proposed transition precision | 0 / 179 | 4 / 76 (5.26%) |
+
+Always short achieves **77.34%** natural accuracy; actual-prior persistence achieves **98.05%**. The latter sees true prior exposure, which the market-only model does not. The LoRA improves macro-F1 over the majority class but still loses on accuracy and proposes far too many false changes. The natural sample contains only five true changes, so its 4/5 recall must not be advertised as a robust general recall estimate.
+
+On the complete 75-case validation transition challenge, correct target-side recall improves from 33/75 (44%) to **40/75 (53.33%)**. A transitions-only challenge cannot estimate false positives or deployment precision. In the fixed 96-hour path, the LoRA predicts short 82 times and long 14 times: one initial entry and **22 reversals**, with no flat exit. These are exposure decisions, not 96 independent trades; this is not a profitability result.
+
+All 512 optimizer steps completed. Training took 548.85 seconds; the complete GPU child took 770.72 seconds. GPU-only estimate is $0.85, excluding other charges; the full $2 reservation is retained conservatively. Export/reload tensor checks passed, and all 12 reload predictions matched with maximum logit difference 0.0. Adapter SHA256: `e51838900838e031fee581097359c33b9862b5615000f9ac7c4eda80fa8318d0`. Private artifact run: `v2-fb761885cf3d42c9a19aea330fa4f1a3`.
+
+This result confirms that removing prior-copying can remove the flat trap, but more frequent actions are not better decisions. The next justified work is to redesign and validate trade/size-change labels and matching market inputs before buying more GPU time. No subsequent paid experiment was automatically launched; $8 of the additional $10 remains unreserved. The original adapter remains on the live service, with its existing experimental limitations.

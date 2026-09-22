@@ -1,0 +1,1294 @@
+{
+  "run_id": "v2-fb761885cf3d42c9a19aea330fa4f1a3",
+  "dataset_id": "19f5d1ea8b3b3225",
+  "task": "NEXT_HOUR_POSITION_SIDE_MARKET_ONLY_V2",
+  "model": "Qwen/Qwen3.5-4B",
+  "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+  "status": "passed",
+  "completed_steps": 512,
+  "child_process_elapsed_seconds": 770.7246278719999,
+  "training_seconds": 548.8491778550001,
+  "gpu_cost_estimate_usd": 0.845484916775584,
+  "baseline_cohorts": {
+    "natural": {
+      "count": 256,
+      "accuracy": 0.28125,
+      "macro_f1": 0.18741567521157854,
+      "per_class": {
+        "long": {
+          "precision": 0.1951219512195122,
+          "recall": 0.6896551724137931,
+          "f1": 0.3041825095057034,
+          "support": 58
+        },
+        "short": {
+          "precision": 0.64,
+          "recall": 0.16161616161616163,
+          "f1": 0.25806451612903225,
+          "support": 198
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          40,
+          18,
+          0
+        ],
+        [
+          165,
+          32,
+          1
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 256,
+        "accuracy": 0.98046875,
+        "macro_f1": 0.6484201823222927,
+        "per_class": {
+          "long": {
+            "precision": 0.9344262295081968,
+            "recall": 0.9827586206896551,
+            "f1": 0.9579831932773109,
+            "support": 58
+          },
+          "short": {
+            "precision": 0.9948717948717949,
+            "recall": 0.9797979797979798,
+            "f1": 0.9872773536895675,
+            "support": 198
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            57,
+            1,
+            0
+          ],
+          [
+            4,
+            194,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 5,
+        "accuracy": 0.0,
+        "persistence_accuracy": 0.0
+      },
+      "predicted_actions": {
+        "long": 205,
+        "short": 50,
+        "flat": 1
+      },
+      "proposed_changes": 179,
+      "correct_transition_precision": 0.0,
+      "correct_transition_recall": 0.0,
+      "false_change_rate": 0.7131474103585658,
+      "always_flat": {
+        "count": 256,
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 58
+          },
+          "short": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 198
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            58
+          ],
+          [
+            0,
+            0,
+            198
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "training_majority_short": {
+        "count": 256,
+        "accuracy": 0.7734375,
+        "macro_f1": 0.2907488986784141,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 58
+          },
+          "short": {
+            "precision": 0.7734375,
+            "recall": 1.0,
+            "f1": 0.8722466960352423,
+            "support": 198
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            58,
+            0
+          ],
+          [
+            0,
+            198,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      }
+    },
+    "transitions": {
+      "count": 75,
+      "accuracy": 0.44,
+      "macro_f1": 0.2817693059628543,
+      "per_class": {
+        "long": {
+          "precision": 0.45098039215686275,
+          "recall": 0.6216216216216216,
+          "f1": 0.5227272727272727,
+          "support": 37
+        },
+        "short": {
+          "precision": 0.4166666666666667,
+          "recall": 0.2631578947368421,
+          "f1": 0.3225806451612903,
+          "support": 38
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          23,
+          14,
+          0
+        ],
+        [
+          28,
+          10,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 75,
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 37
+          },
+          "short": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 38
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            37,
+            0
+          ],
+          [
+            38,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 75,
+        "accuracy": 0.44,
+        "persistence_accuracy": 0.0
+      },
+      "predicted_actions": {
+        "long": 51,
+        "short": 24
+      },
+      "proposed_changes": 33,
+      "correct_transition_precision": 1.0,
+      "correct_transition_recall": 0.44,
+      "false_change_rate": null,
+      "always_flat": {
+        "count": 75,
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 37
+          },
+          "short": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 38
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            37
+          ],
+          [
+            0,
+            0,
+            38
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "training_majority_short": {
+        "count": 75,
+        "accuracy": 0.5066666666666667,
+        "macro_f1": 0.22418879056047195,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 37
+          },
+          "short": {
+            "precision": 0.5066666666666667,
+            "recall": 1.0,
+            "f1": 0.6725663716814159,
+            "support": 38
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            37,
+            0
+          ],
+          [
+            0,
+            38,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      }
+    },
+    "rollout": {
+      "count": 96,
+      "accuracy": 0.125,
+      "macro_f1": 0.07925407925407925,
+      "per_class": {
+        "long": {
+          "precision": 0.10752688172043011,
+          "recall": 0.9090909090909091,
+          "f1": 0.1923076923076923,
+          "support": 11
+        },
+        "short": {
+          "precision": 0.6666666666666666,
+          "recall": 0.023529411764705882,
+          "f1": 0.045454545454545456,
+          "support": 85
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          10,
+          1,
+          0
+        ],
+        [
+          83,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 96,
+        "accuracy": 0.9479166666666666,
+        "macro_f1": 0.5843409656118687,
+        "per_class": {
+          "long": {
+            "precision": 0.75,
+            "recall": 0.8181818181818182,
+            "f1": 0.7826086956521738,
+            "support": 11
+          },
+          "short": {
+            "precision": 0.9761904761904762,
+            "recall": 0.9647058823529412,
+            "f1": 0.9704142011834319,
+            "support": 85
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            9,
+            2,
+            0
+          ],
+          [
+            3,
+            82,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 5,
+        "accuracy": 0.6,
+        "persistence_accuracy": 0.0
+      },
+      "predicted_actions": {
+        "long": 93,
+        "short": 3
+      },
+      "proposed_changes": 85,
+      "correct_transition_precision": 0.03529411764705882,
+      "correct_transition_recall": 0.6,
+      "false_change_rate": 0.9010989010989011,
+      "always_flat": {
+        "count": 96,
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 11
+          },
+          "short": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 85
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            11
+          ],
+          [
+            0,
+            0,
+            85
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "training_majority_short": {
+        "count": 96,
+        "accuracy": 0.8854166666666666,
+        "macro_f1": 0.3130755064456722,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 11
+          },
+          "short": {
+            "precision": 0.8854166666666666,
+            "recall": 1.0,
+            "f1": 0.9392265193370166,
+            "support": 85
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            11,
+            0
+          ],
+          [
+            0,
+            85,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "flat_start_rollout": {
+        "hours": 96,
+        "entries": 1,
+        "exits": 0,
+        "reversals": 4,
+        "note": "Market-only model has no position input; chronology carries exposure for transition counts, not feedback."
+      }
+    }
+  },
+  "after_cohorts": {
+    "natural": {
+      "count": 256,
+      "accuracy": 0.71484375,
+      "macro_f1": 0.34694313992181414,
+      "per_class": {
+        "long": {
+          "precision": 0.2857142857142857,
+          "recall": 0.1724137931034483,
+          "f1": 0.21505376344086022,
+          "support": 58
+        },
+        "short": {
+          "precision": 0.7828054298642534,
+          "recall": 0.8737373737373737,
+          "f1": 0.8257756563245823,
+          "support": 198
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          10,
+          48,
+          0
+        ],
+        [
+          25,
+          173,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 256,
+        "accuracy": 0.98046875,
+        "macro_f1": 0.6484201823222927,
+        "per_class": {
+          "long": {
+            "precision": 0.9344262295081968,
+            "recall": 0.9827586206896551,
+            "f1": 0.9579831932773109,
+            "support": 58
+          },
+          "short": {
+            "precision": 0.9948717948717949,
+            "recall": 0.9797979797979798,
+            "f1": 0.9872773536895675,
+            "support": 198
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            57,
+            1,
+            0
+          ],
+          [
+            4,
+            194,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 5,
+        "accuracy": 0.8,
+        "persistence_accuracy": 0.0
+      },
+      "predicted_actions": {
+        "short": 221,
+        "long": 35
+      },
+      "proposed_changes": 76,
+      "correct_transition_precision": 0.05263157894736842,
+      "correct_transition_recall": 0.8,
+      "false_change_rate": 0.2868525896414343,
+      "always_flat": {
+        "count": 256,
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 58
+          },
+          "short": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 198
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            58
+          ],
+          [
+            0,
+            0,
+            198
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "training_majority_short": {
+        "count": 256,
+        "accuracy": 0.7734375,
+        "macro_f1": 0.2907488986784141,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 58
+          },
+          "short": {
+            "precision": 0.7734375,
+            "recall": 1.0,
+            "f1": 0.8722466960352423,
+            "support": 198
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            58,
+            0
+          ],
+          [
+            0,
+            198,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      }
+    },
+    "transitions": {
+      "count": 75,
+      "accuracy": 0.5333333333333333,
+      "macro_f1": 0.2962962962962963,
+      "per_class": {
+        "long": {
+          "precision": 0.625,
+          "recall": 0.13513513513513514,
+          "f1": 0.22222222222222224,
+          "support": 37
+        },
+        "short": {
+          "precision": 0.5223880597014925,
+          "recall": 0.9210526315789473,
+          "f1": 0.6666666666666666,
+          "support": 38
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          5,
+          32,
+          0
+        ],
+        [
+          3,
+          35,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 75,
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 37
+          },
+          "short": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 38
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            37,
+            0
+          ],
+          [
+            38,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 75,
+        "accuracy": 0.5333333333333333,
+        "persistence_accuracy": 0.0
+      },
+      "predicted_actions": {
+        "short": 67,
+        "long": 8
+      },
+      "proposed_changes": 40,
+      "correct_transition_precision": 1.0,
+      "correct_transition_recall": 0.5333333333333333,
+      "false_change_rate": null,
+      "always_flat": {
+        "count": 75,
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 37
+          },
+          "short": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 38
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            37
+          ],
+          [
+            0,
+            0,
+            38
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "training_majority_short": {
+        "count": 75,
+        "accuracy": 0.5066666666666667,
+        "macro_f1": 0.22418879056047195,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 37
+          },
+          "short": {
+            "precision": 0.5066666666666667,
+            "recall": 1.0,
+            "f1": 0.6725663716814159,
+            "support": 38
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            37,
+            0
+          ],
+          [
+            0,
+            38,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      }
+    },
+    "rollout": {
+      "count": 96,
+      "accuracy": 0.7395833333333334,
+      "macro_f1": 0.2834331337325349,
+      "per_class": {
+        "long": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 11
+        },
+        "short": {
+          "precision": 0.8658536585365854,
+          "recall": 0.8352941176470589,
+          "f1": 0.8502994011976048,
+          "support": 85
+        },
+        "flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "confusion_matrix": [
+        [
+          0,
+          11,
+          0
+        ],
+        [
+          14,
+          71,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "confusion_order": [
+        "long",
+        "short",
+        "flat"
+      ],
+      "confusion_axes": "rows=target, columns=prediction",
+      "persistence_baseline": {
+        "count": 96,
+        "accuracy": 0.9479166666666666,
+        "macro_f1": 0.5843409656118687,
+        "per_class": {
+          "long": {
+            "precision": 0.75,
+            "recall": 0.8181818181818182,
+            "f1": 0.7826086956521738,
+            "support": 11
+          },
+          "short": {
+            "precision": 0.9761904761904762,
+            "recall": 0.9647058823529412,
+            "f1": 0.9704142011834319,
+            "support": 85
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            9,
+            2,
+            0
+          ],
+          [
+            3,
+            82,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "position_change_subset": {
+        "count": 5,
+        "accuracy": 0.6,
+        "persistence_accuracy": 0.0
+      },
+      "predicted_actions": {
+        "short": 82,
+        "long": 14
+      },
+      "proposed_changes": 26,
+      "correct_transition_precision": 0.11538461538461539,
+      "correct_transition_recall": 0.6,
+      "false_change_rate": 0.25274725274725274,
+      "always_flat": {
+        "count": 96,
+        "accuracy": 0.0,
+        "macro_f1": 0.0,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 11
+          },
+          "short": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 85
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            11
+          ],
+          [
+            0,
+            0,
+            85
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "training_majority_short": {
+        "count": 96,
+        "accuracy": 0.8854166666666666,
+        "macro_f1": 0.3130755064456722,
+        "per_class": {
+          "long": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 11
+          },
+          "short": {
+            "precision": 0.8854166666666666,
+            "recall": 1.0,
+            "f1": 0.9392265193370166,
+            "support": 85
+          },
+          "flat": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            11,
+            0
+          ],
+          [
+            0,
+            85,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_order": [
+          "long",
+          "short",
+          "flat"
+        ],
+        "confusion_axes": "rows=target, columns=prediction"
+      },
+      "flat_start_rollout": {
+        "hours": 96,
+        "entries": 1,
+        "exits": 0,
+        "reversals": 22,
+        "note": "Market-only model has no position input; chronology carries exposure for transition counts, not feedback."
+      }
+    }
+  },
+  "diagnostic_gate": {
+    "passed": false,
+    "checks": {
+      "nonconstant_natural_output": true,
+      "beats_base_natural_macro_f1": true,
+      "beats_majority_natural_macro_f1": true,
+      "natural_accuracy_within_2pp_of_persistence": false,
+      "correct_transition_recall_at_least_10pct": true,
+      "natural_correct_transition_precision_at_least_20pct": false,
+      "natural_false_change_rate_at_most_10pct": false
+    },
+    "production_promoted": false,
+    "note": "Diagnostic validation only. Promotion additionally needs independent test, matching serving inputs and cost-aware rollout."
+  },
+  "promotion_gate": {
+    "passed": false,
+    "reason": "Diagnostic validation only; no independent test, cross-market validation or cost-adjusted rollout."
+  },
+  "reload_status": "passed",
+  "reload_max_logit_difference": 0.0,
+  "reload_predictions_identical": true,
+  "production_promoted": false,
+  "test_evaluated": false,
+  "adapter_sha256": "e51838900838e031fee581097359c33b9862b5615000f9ac7c4eda80fa8318d0",
+  "compute_reservation_usd": 2,
+  "source_label_audit": {
+    "activeHours": 5441,
+    "activeHoursWithUnchangedEndpointSide": 4261,
+    "activeHoursWithBothBuyAndSell": 1948,
+    "activeHoursWithSameEndpointButIntrahourSideChanges": 472,
+    "note": "Position-changing timestamps aggregate simultaneous fills. These counts describe endpoint-label information loss, not forecastability or returns."
+  },
+  "status_note": "Pipeline/export passed; diagnostic behavior gate failed. Adapter remains private and is not served."
+}

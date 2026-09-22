@@ -25,7 +25,7 @@ Most hourly labels preserve the previous position. The tuned model's held-out pe
 - Adapter file: 129,934,448 bytes; SHA256 `918fdcd054e3d77116ddb7b708cc7c2a24aa443696f4639bd103408777051831`.
 - Adapter tensors were byte-identical in memory, on disk and after loading a fresh pinned base. All 12 reload choices matched; maximum logit difference **0.0**.
 
-Export checks apply to the training runtime, not the production inference image. The live service continues to report `trainingStatus: base`; this adapter has not been deployed.
+Export checks apply to the training runtime, not the production inference image. At the time of this original evaluation the adapter had not been deployed. It was subsequently released and served at the user’s request; the [corrective diagnostic](TRANSITION_DIAGNOSTIC.md) documents its persistence failure and the paused historical replay.
 
 ## Cost and shutdown
 
