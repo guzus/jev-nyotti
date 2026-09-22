@@ -36,3 +36,21 @@ test('four-hour report preserves explicit hourly-model and holding assumptions',
   assert.equal(actual.report.curve.at(-1)!.time,'2026-09-01T04:00:00.000Z');
  } finally { await rm(directory,{recursive:true,force:true}); }
 });
+
+test('bundled release report is used only when mutable report is absent',async()=>{
+ const {makePnlReport}=await import('../server/pnl-import.js');
+ const dir=await mkdtemp(join(tmpdir(),'jev-release-'));
+ try{
+ const cutoff='2026-09-01T00:00:00.000Z';
+ const value=makePnlReport({model:'release',revision:'pinned',generatedAt:'2026-09-02T00:00:00.000Z',source:'test',priorPolicy:'previous_prediction',intervalMinutes:240,series:[{symbol:'BTCUSD',decisions:[{marketAsOf:cutoff,action:'flat',previousAction:'flat'}],candles:[{time:Date.parse(cutoff)/1000,open:100,high:110,low:90,close:100,volume:1}]}]});
+ const bundled=join(dir,'bundled.json');await writeFile(bundled,JSON.stringify(value));const read=performanceReader(dir,bundled);
+ assert.equal((await read() as typeof value).model,'release');
+ await writeFile(join(dir,'pnl-report.json'),'{}');await assert.rejects(read(),/성과/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('published history retains every prior/action transition in latest-first order',async()=>{
+ const {makePnlReport}=await import('../server/pnl-import.js');
+ const d=makePnlReport({model:'test',revision:'pinned',generatedAt:'2026-09-02T00:00:00Z',source:'Binance Spot USDT',priorPolicy:'previous_prediction',intervalMinutes:240,series:[{symbol:'BTCUSD',decisions:[{marketAsOf:'2026-09-01T00:00:00Z',action:'long',previousAction:'flat'},{marketAsOf:'2026-09-01T04:00:00Z',action:'flat',previousAction:'long'}],candles:[{time:1788220800,open:100,high:110,low:90,close:105,volume:1},{time:1788235200,open:105,high:110,low:100,close:108,volume:1}]}]});
+ assert.equal(d.history.length,2);assert.equal(d.history[0].action,'flat');assert.equal(d.history[0].previousAction,'long');assert.equal(d.history[1].previousAction,'flat');
+});

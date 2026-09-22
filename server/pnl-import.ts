@@ -26,7 +26,8 @@ export function makePnlReport(input: unknown) {
   const report = simulatePortfolio(parsed);
   const latestCutoff = Math.max(...parsed.series.map(s => Date.parse(s.decisions.at(-1)!.marketAsOf)));
   if (Date.parse(parsed.generatedAt) < latestCutoff + (parsed.intervalMinutes ?? 60) * 60000) throw new Error('generatedAt precedes the final completed execution candle');
-  return { status: 'ready' as const, model: parsed.model, revision: parsed.revision, generatedAt: parsed.generatedAt, source: parsed.source, priorPolicy: parsed.priorPolicy, report };
+  const history=parsed.series.flatMap(s=>s.decisions.map(d=>({symbol:s.symbol,...d}))).sort((a,b)=>Date.parse(b.marketAsOf)-Date.parse(a.marketAsOf)||a.symbol.localeCompare(b.symbol));
+  return { history, status: 'ready' as const, model: parsed.model, revision: parsed.revision, generatedAt: parsed.generatedAt, source: parsed.source, priorPolicy: parsed.priorPolicy, report };
 }
 
 export function importPnlReport(inputFile: string, outputDirectory: string) {

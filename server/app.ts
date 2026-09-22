@@ -88,7 +88,7 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
 
   const scheduler=createScheduler(config,store,analyze,deps.now);
 
-  const readPerformance=performanceReader(config.dataDir);
+  const readPerformance=performanceReader(config.dataDir,'reports/pnl-report.json');
   app.get('/api/performance',limit('performance',60),async(_req,res)=>{res.setHeader('Cache-Control','no-store');res.json(await readPerformance());});
   app.get('/healthz',(_req,res)=>res.json({status:'ok',service:'jev-trading-gateway'}));
   app.get('/api/status',(_req,res)=>res.json({model:config.modelId,revision:config.modelRevision,trainingStatus:config.trainingStatus,

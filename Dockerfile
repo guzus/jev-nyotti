@@ -13,6 +13,7 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+COPY --chown=node:node reports ./reports
 COPY docs/api-example.json ./docs/api-example.json
 RUN mkdir -p /data && chown node:node /data /app
 USER node

@@ -1,0 +1,32 @@
+{
+  "stage": "pilot_completed_main_running",
+  "targetRange": [
+    "2025-12-26T08:00:00Z",
+    "2026-09-22T08:00:00Z"
+  ],
+  "targetDecisions": 16200,
+  "publishedRange": [
+    "2026-09-22T00:00:00Z",
+    "2026-09-22T08:00:00Z"
+  ],
+  "publishedDecisions": 20,
+  "sourceSha256": "6db5b13f02ff06e0850bf8b59d4cb2b447ecf31cf02d9345f9bfba20afd9c6c9",
+  "modelAdapterRevision": "73867def94f8b062700ad3f8d63128b4e1c9b1d4",
+  "budgetCapUsd": 10,
+  "pilot": {
+    "completedDecisions": 20,
+    "completedCutoffs": 2,
+    "elapsedSeconds": 24.263050458,
+    "reservedBudgetUsd": 0.75,
+    "conservativeRateUsdSecond": 0.0013,
+    "identity": "e7782b0b45c4d812b0a028552c7463df07158946f94584159860e918b115a820"
+  },
+  "mainModalApp": "ap-3bKsndrZ8r6tQRH9GckdkC",
+  "inferenceMode": "sequential benchmark; main cross-symbol batches passed first-cutoff parity",
+  "notes": [
+    "Source Binance Spot USDT; current site live charts use Kraken USD",
+    "Current model predicts next-hour position; strategy holds for4hours",
+    "Initial flat; prior decisions carried forward; no real orders",
+    "No full five-year result yet"
+  ]
+}

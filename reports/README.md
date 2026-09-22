@@ -1,0 +1,1 @@
+Public, reproducible model replay result artifacts only. No raw private training data or credentials. The finalized pnl-report.json is included in releases; /data/pnl-report.json takes precedence when present.

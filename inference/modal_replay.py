@@ -6,7 +6,12 @@ import os
 from pathlib import Path
 import time
 import modal
-from modal_adapter import image, cache
+HERE = Path(__file__).resolve().parent
+requirements = [line.strip() for name in ('requirements-api.txt','requirements-gpu.txt') for line in (HERE/name).read_text().splitlines() if line.strip() and not line.startswith(('#','-r '))] if modal.is_local() else []
+cache = modal.Volume.from_name('jev-qwen-model-cache', create_if_missing=True)
+image = (modal.Image.debian_slim(python_version='3.12').pip_install(*requirements)
+ .env({'PYTHONPATH':'/opt/inference','HF_HOME':'/models/huggingface','TOKENIZERS_PARALLELISM':'false','INFERENCE_DEVICE':'cuda','LORA_MODEL_ID':'guzus/jev-nyotti','LORA_REVISION':'73867def94f8b062700ad3f8d63128b4e1c9b1d4','LORA_SHA256':'918fdcd054e3d77116ddb7b708cc7c2a24aa443696f4639bd103408777051831'})
+ .add_local_dir(str(HERE/'jev_inference'),remote_path='/opt/inference/jev_inference',ignore=['__pycache__']))
 
 app = modal.App('jev-nyotti-historical-replay')
 results = modal.Volume.from_name('jev-nyotti-replay', create_if_missing=True)
@@ -54,11 +59,13 @@ def run(run_id: str, budget_usd: float, max_decisions: int):
             rows = [r for r in records if r['symbol']==symbol]
             output['series'].append(dict(symbol=symbol,decisions=[{k:r[k] for k in ('marketAsOf','action','previousAction')} for r in rows],candles=[r['execution'] for r in rows]))
         (folder/'output.json').write_text(json.dumps(output,allow_nan=False))
-        (folder/'status.json').write_text(json.dumps(dict(completedDecisions=len(records),completedCutoffs=state['completedCutoffs'],elapsedSeconds=time.monotonic()-started,reservedBudgetUsd=budget_usd,conservativeRateUsdSecond=RATE_USD_SECOND,identity=identity)))
+        (folder/'status.json').write_text(json.dumps(dict(completedDecisions=len(records),completedCutoffs=state['completedCutoffs'],elapsedSeconds=time.monotonic()-started,reservedBudgetUsd=budget_usd,conservativeRateUsdSecond=RATE_USD_SECOND,identity=identity,batchGate=batch_scorer.gate)))
         results.commit()
     settings = Settings(api_key='offline-replay-no-http-endpoint-0000',device='cuda',adapter_id='guzus/jev-nyotti',adapter_revision='73867def94f8b062700ad3f8d63128b4e1c9b1d4',adapter_sha256='918fdcd054e3d77116ddb7b708cc7c2a24aa443696f4639bd103408777051831')
     engine = QwenEngine(settings)
     engine.load()
+    from jev_inference.replay_batch import ReplayBatchScorer
+    batch_scorer=ReplayBatchScorer()
     previous = {symbol:'flat' for symbol in indexes}
     for record in state['records']:
         if record['previousAction'] != previous[record['symbol']]:
@@ -70,18 +77,26 @@ def run(run_id: str, budget_usd: float, max_decisions: int):
         if calls+len(indexes)>max_decisions or time.monotonic()-started+max(30,sum(durations[-len(indexes):])*1.5)>seconds:
             break
         pending=[]
+        prepared_inputs=[]
+        executions=[]
         for symbol,index in indexes.items():
-            prior,execution=window(index,cutoff) # missing data stops the entire chain
-            tick=time.monotonic()
-            score=engine.score(engine.prepare([job(symbol,manifest['source'],cutoff,previous[symbol],prior)]))[0]
-            durations.append(time.monotonic()-tick)
+            prior,execution=window(index,cutoff)
+            prepared_inputs.append(job(symbol,manifest['source'],cutoff,previous[symbol],prior))
+            executions.append(execution)
+        tick=time.monotonic()
+        scores=batch_scorer.score(engine,engine.prepare(prepared_inputs))
+        elapsed=(time.monotonic()-tick)/len(indexes)
+        for (symbol,index),execution,score in zip(indexes.items(),executions,scores,strict=True):
+            durations.append(elapsed)
             action=ACTIONS[max(range(3),key=lambda i:score.logits[i])]
-            pending.append(dict(symbol=symbol,marketAsOf=iso(cutoff),action=action,previousAction=previous[symbol],execution=execution,logits=score.logits,inputTokens=score.inputTokens,elapsedSeconds=durations[-1]))
+            pending.append(dict(symbol=symbol,marketAsOf=iso(cutoff),action=action,previousAction=previous[symbol],execution=execution,logits=score.logits,inputTokens=score.inputTokens,elapsedSeconds=elapsed))
             calls+=1
         state['records'].extend(pending)
         state['completedCutoffs']+=1
         for row in pending:
             previous[row['symbol']]=row['action']
+        if state['completedCutoffs']%50==0 or state['completedCutoffs']==1:
+            print(json.dumps({'completedDecisions':len(state['records']),'marketThrough':iso(cutoff+STEP),'batchGate':batch_scorer.gate,'elapsedSeconds':time.monotonic()-started}),flush=True)
         save() # only complete portfolio cutoffs are published
     save()
     watchdog.cancel()
