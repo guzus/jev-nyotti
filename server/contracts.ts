@@ -14,7 +14,7 @@ export const systemOneSchema = z.object({
   questions: z.record(key, questionSchema).refine(v => Object.keys(v).length >= 1 && Object.keys(v).length <= 8, 'Provide 1–8 questions'),
 }).strict();
 export const tradeSchema = z.object({
-  symbol: z.enum(['BTCUSD', 'ETHUSD', 'SOLUSD']), interval: z.union([z.literal(15), z.literal(60), z.literal(240)]),
+  symbol: z.enum(['BTCUSD', 'ETHUSD', 'SOLUSD', 'XRPUSD', 'DOGEUSD', 'ADAUSD', 'AVAXUSD', 'LINKUSD', 'DOTUSD', 'LTCUSD']), interval: z.union([z.literal(15), z.literal(60), z.literal(240)]),
 }).strict();
 export type Question = z.infer<typeof questionSchema>;
 export type SystemOneRequest = z.infer<typeof systemOneSchema>;

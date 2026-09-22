@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import './styles.css';
 
-type SymbolCode = 'BTCUSD' | 'ETHUSD' | 'SOLUSD';
+type SymbolCode = import('../server/contracts.js').TradeRequest['symbol'];
 type Interval = 15 | 60 | 240;
 type Action = 'long' | 'short' | 'hold';
 type Status = {
@@ -33,6 +33,13 @@ const ASSETS: { symbol: SymbolCode; code: string; name: string; icon: string }[]
   { symbol: 'BTCUSD', code: 'BTC', name: 'Bitcoin', icon: '₿' },
   { symbol: 'ETHUSD', code: 'ETH', name: 'Ethereum', icon: 'Ξ' },
   { symbol: 'SOLUSD', code: 'SOL', name: 'Solana', icon: '◎' },
+  { symbol: 'XRPUSD', code: 'XRP', name: 'XRP', icon: 'X' },
+  { symbol: 'DOGEUSD', code: 'DOGE', name: 'Dogecoin', icon: 'Ð' },
+  { symbol: 'ADAUSD', code: 'ADA', name: 'Cardano', icon: 'A' },
+  { symbol: 'AVAXUSD', code: 'AVAX', name: 'Avalanche', icon: 'A' },
+  { symbol: 'LINKUSD', code: 'LINK', name: 'Chainlink', icon: 'L' },
+  { symbol: 'DOTUSD', code: 'DOT', name: 'Polkadot', icon: '●' },
+  { symbol: 'LTCUSD', code: 'LTC', name: 'Litecoin', icon: 'Ł' },
 ];
 const ACTIONS = {
   long: { name: '롱 관점', label: 'LONG', icon: ArrowUpRight },
@@ -41,7 +48,8 @@ const ACTIONS = {
 };
 // Korean market convention: rising = red, falling = blue. Mirrors the CSS custom properties.
 const CHART = { up: '#bd3425', down: '#2058c7', grid: '#ebe6dc', tick: '#736c60', cursor: '#b8b1a3' };
-const currency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+const priceDigits = (value: number) => value < 1 ? 6 : value < 10 ? 4 : 2;
+const currency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: priceDigits(value) }).format(value);
 const number = (value: number, digits = 2) => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: digits }).format(value);
 const clock = (value: string) => {
   const date = new Date(value);
@@ -71,7 +79,7 @@ function PriceChart({ candles, interval, trend }: { candles: Candle[]; interval:
         <defs><linearGradient id="price-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.18} /><stop offset="100%" stopColor={color} stopOpacity={0} /></linearGradient></defs>
         <CartesianGrid vertical={false} stroke={CHART.grid} />
         <XAxis dataKey="time" axisLine={false} tickLine={false} minTickGap={56} tick={{ fill: CHART.tick, fontSize: 11 }} tickMargin={12} tickFormatter={(value: number) => new Intl.DateTimeFormat('ko-KR', interval === 15 ? { hour: '2-digit', minute: '2-digit', hour12: false } : { month: 'numeric', day: 'numeric' }).format(value * 1000)} />
-        <YAxis orientation="right" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: CHART.tick, fontSize: 11 }} tickMargin={8} width={64} tickFormatter={(value: number) => number(value, value < 100 ? 2 : 0)} />
+        <YAxis orientation="right" domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: CHART.tick, fontSize: 11 }} tickMargin={8} width={64} tickFormatter={(value: number) => number(value, value < 100 ? priceDigits(value) : 0)} />
         <Tooltip content={({ active, payload }) => {
           const candle = payload?.[0]?.payload as Candle | undefined;
           if (!active || !candle) return null;
@@ -199,8 +207,8 @@ function App() {
     <main>
       <h1 className="sr-only">jev뇨띠 시장 분석</h1>
       <div className="market-bar">
-        <div className="segmented" role="group" aria-label="거래 종목 선택">{ASSETS.map((item) => <button key={item.symbol} type="button" aria-pressed={symbol === item.symbol} onClick={() => changeMarket(item.symbol, interval)}><span className={`coin coin-${item.code.toLowerCase()}`} aria-hidden="true">{item.icon}</span>{item.code}</button>)}</div>
-        <div className="segmented" role="group" aria-label="차트 시간 간격">{([15, 60, 240] as Interval[]).map((item) => <button key={item} type="button" aria-pressed={item === interval} onClick={() => changeMarket(symbol, item)}>{intervalLabel(item)}</button>)}</div>
+        <div className="segmented asset-tabs" role="group" aria-label="거래 종목 선택">{ASSETS.map((item) => <button key={item.symbol} type="button" aria-pressed={symbol === item.symbol} onClick={() => changeMarket(item.symbol, interval)}><span className={`coin coin-${item.code.toLowerCase()}`} aria-hidden="true">{item.icon}</span>{item.code}</button>)}</div>
+        <div className="segmented interval-tabs" role="group" aria-label="차트 시간 간격">{([15, 60, 240] as Interval[]).map((item) => <button key={item} type="button" aria-pressed={item === interval} onClick={() => changeMarket(symbol, item)}>{intervalLabel(item)}</button>)}</div>
       </div>
 
       <div className="workspace">
@@ -250,7 +258,7 @@ function App() {
         </aside>
       </div>
     </main>
-    <footer><span>Qwen3.5-4B 기본 모델 · 워뇨띠 거래내역 미학습</span><span>연구용 · 주문 실행 없음</span></footer>
+    <footer><span>Qwen3.5-4B 기본 모델 · 워뇨띠 거래내역 미학습</span><span>DYOR NFA</span></footer>
   </>;
 }
 

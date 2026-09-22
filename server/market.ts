@@ -48,7 +48,7 @@ export function createMarketReader(fetcher:typeof fetch=fetch) {
     const waiting=inflight.get(key);if(waiting)return waiting;
     const pending=(async()=>{
       try {
-        const pair=request.symbol==='BTCUSD'?'XBTUSD':request.symbol;
+        const pair=request.symbol==='BTCUSD'?'XBTUSD':request.symbol==='DOGEUSD'?'XDGUSD':request.symbol;
         const response=await fetcher(`https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=${request.interval}`,{signal:AbortSignal.timeout(15000),redirect:'error'});
         if(!response.ok) throw new ApiError(503,'market_unavailable','시장 데이터 공급자가 응답하지 않습니다.');
         const result=parseKraken(await response.json(),request);

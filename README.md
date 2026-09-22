@@ -28,7 +28,7 @@ Without an inference endpoint, the site shows actual market data and a model-una
 | `POST /v1/trading/decisions` | Bearer-authenticated market research stance |
 | `GET /v1/models` | Actual model identity |
 | `GET /openapi.json` | API discovery and request schemas |
-| Website `/` | BTC/ETH/SOL × 15m/1h/4h charts and shareable decisions |
+| Website `/` | BTC/ETH/SOL/XRP/DOGE/ADA/AVAX/LINK/DOT/LTC × 15m/1h/4h charts and shareable decisions |
 | `GET /healthz` | Gateway liveness without waking the GPU |
 
 Use `Qwen/Qwen3.5-4B` as the client model. This preserves TypeSafe's wire format, not Jev's weights or calibration. Chat completions are not implemented. See [API semantics and examples](docs/api.md).

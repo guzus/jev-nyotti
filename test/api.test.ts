@@ -6,9 +6,10 @@ import { join } from 'node:path';
 import { createApp } from '../server/app.js';
 import { readConfig } from '../server/config.js';
 import { answerFor, jobsFor } from '../server/classifier.js';
-import { parseKraken } from '../server/market.js';
+import { createMarketReader, parseKraken } from '../server/market.js';
 import { Store } from '../server/store.js';
 import type { SystemOneRequest } from '../server/contracts.js';
+import { tradeSchema } from '../server/contracts.js';
 
 const model='Qwen/Qwen3.5-4B';
 const key='test-only-not-a-deployed-secret-123456789';
@@ -46,6 +47,22 @@ test('market excludes unfinished candles and rejects missing, invalid and stale 
   assert.throws(()=>parseKraken(gap,{symbol:'BTCUSD',interval:15},now),/누락/);
   const bad=structuredClone(fixture);bad.result.XXBTZUSD[70][4]='9999';
   assert.throws(()=>parseKraken(bad,{symbol:'BTCUSD',interval:15},now),/검증/);
+});
+
+test('expanded markets validate and Dogecoin uses the correct Kraken pair',async()=>{
+  const urls:string[]=[];
+  const read=createMarketReader((async input=>{
+    urls.push(String(input));
+    return new Response(JSON.stringify(marketFixture()),{status:200});
+  }) as typeof fetch);
+  for(const symbol of ['XRPUSD','DOGEUSD','ADAUSD','AVAXUSD','LINKUSD','DOTUSD','LTCUSD']) {
+    const q=tradeSchema.parse({symbol,interval:15});
+    const value=await read(q);
+    assert.equal(value.symbol,symbol);assert.equal(value.candles.length,96);
+    assert.equal(new URL(urls.at(-1)!).searchParams.get('pair'),symbol==='DOGEUSD'?'XDGUSD':symbol);
+  }
+  assert.equal(tradeSchema.safeParse({symbol:'XDGUSD',interval:15}).success,false);
+  assert.equal(tradeSchema.safeParse({symbol:'UNKNOWNUSD',interval:15}).success,false);
 });
 
 test('daily budget remains enforced after restart and cannot partially reserve beyond limit',()=>{

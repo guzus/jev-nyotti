@@ -233,3 +233,12 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Keep every supported market discoverable without squeezing mobile controls. */
+.market-bar > .asset-tabs { flex: 1 1 720px; flex-wrap: wrap; }
+.asset-tabs button { flex: 1 0 auto; }
+.market-bar > .interval-tabs { flex: 0 0 auto; margin-left: auto; }
+@media (max-width: 480px) {
+  .market-bar { flex-wrap: wrap; }
+  .market-bar > .asset-tabs { flex-basis: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
