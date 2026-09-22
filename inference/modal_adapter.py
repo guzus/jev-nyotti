@@ -1,7 +1,9 @@
-"""Pinned jev-nyotti canary. Deploy: modal deploy inference/modal_adapter.py."""
+"""Pinned jev-nyotti canary (adapter pin in jev_inference/deployment.py). Deploy: modal deploy inference/modal_adapter.py."""
 from pathlib import Path
 
 import modal
+
+from jev_inference.deployment import image_env
 
 HERE = Path(__file__).resolve().parent
 requirements = [
@@ -20,9 +22,8 @@ image = (
         "HF_HOME": "/models/huggingface",
         "TOKENIZERS_PARALLELISM": "false",
         "INFERENCE_DEVICE": "cuda",
-        "LORA_MODEL_ID": "guzus/jev-nyotti",
-        "LORA_REVISION": "73867def94f8b062700ad3f8d63128b4e1c9b1d4",
-        "LORA_SHA256": "918fdcd054e3d77116ddb7b708cc7c2a24aa443696f4639bd103408777051831",
+        # Adapter pin and ACTION_HOLD_MARGIN: edit jev_inference/deployment.py only.
+        **image_env("jev-nyotti"),
     })
     .add_local_dir(str(HERE / "jev_inference"), remote_path="/opt/inference/jev_inference", ignore=["__pycache__"])
 )

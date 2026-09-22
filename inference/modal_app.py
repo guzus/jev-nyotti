@@ -7,6 +7,8 @@ from pathlib import Path
 
 import modal
 
+from jev_inference.deployment import image_env
+
 HERE = Path(__file__).resolve().parent
 # Modal copies only the named requirements file; flatten our two pinned files
 # so its remote builder never sees an unresolved local `-r` include.
@@ -26,6 +28,8 @@ image = (
         "HF_HOME": "/models/huggingface",
         "TOKENIZERS_PARALLELISM": "false",
         "INFERENCE_DEVICE": "cuda",
+        # Adapter pin and ACTION_HOLD_MARGIN: edit jev_inference/deployment.py only.
+        **image_env("jev-qwen-35-4b"),
     })
     .add_local_dir(str(HERE / "jev_inference"), remote_path="/opt/inference/jev_inference", ignore=["__pycache__"])
 )
