@@ -48,7 +48,7 @@ def reject_identifier_fields(value):
             reject_identifier_fields(child)
 
 
-def load_dataset(directory):
+def load_dataset(directory, *, experiment=False):
     """Verify file identities, row schema and chronology before any GPU dispatch."""
     from jev_inference.schemas import Job
     directory = Path(directory)
@@ -58,13 +58,18 @@ def load_dataset(directory):
             raise ValueError(f"missing file or disallowed symlink: {filename}")
     manifest = json.loads((directory / "manifest.json").read_text())
     valid_id(manifest["dataset_id"])
-    if manifest.get("task") != TASK or manifest.get("model") != MODEL_ID or manifest.get("revision") != MODEL_REVISION:
+    if experiment:
+        expected_id=hashlib.sha256(json.dumps({k:v for k,v in manifest.items() if k != "dataset_id"},sort_keys=True).encode()).hexdigest()[:16]
+        if manifest["dataset_id"] != expected_id:
+            raise ValueError("content-addressed experiment identity mismatch")
+    expected_task = "NEXT_HOUR_POSITION_SIDE_MARKET_ONLY_V2" if experiment else TASK
+    if manifest.get("task") != expected_task or manifest.get("model") != MODEL_ID or manifest.get("revision") != MODEL_REVISION:
         raise ValueError("dataset task or pinned model mismatch")
     if not manifest.get("provenance"):
         raise ValueError("dataset provenance is required")
     rows_by_split = {}
     seen = set()
-    limits = {"train": 4096, "validation": 128, "test": 128}
+    limits = {"train": 2048 if experiment else 4096, "validation": 512 if experiment else 128, "test": 128}
     for split in SPLITS:
         filename = f"{split}.jsonl"
         content = (directory / filename).read_bytes()
@@ -83,6 +88,8 @@ def load_dataset(directory):
                     raise ValueError("row fields")
                 reject_identifier_fields(row["job"])
                 job = Job.model_validate(row["job"])
+                if experiment and "position_side_before_cutoff" in job.state:
+                    raise ValueError("prior-position shortcut in ablation")
                 names = [option.name for option in job.options]
                 if len(names) != 3 or set(names) != set(ACTIONS):
                     raise ValueError("action options")
@@ -110,6 +117,9 @@ def load_dataset(directory):
         gap = utc_timestamp(rows_by_split[newer][0]["cutoff"]) - utc_timestamp(rows_by_split[older][-1]["cutoff"])
         if gap < 96 * 3600:
             raise ValueError("chronological splits require at least a 96-hour purge")
+    if experiment:
+        from transition_data import validate_cohorts
+        validate_cohorts(rows_by_split["validation"], manifest["cohorts"])
     return manifest, rows_by_split
 
 
@@ -163,7 +173,7 @@ def tensor_hash(tensors):
     return digest.hexdigest()
 
 
-def main(run_id, dataset_id, deadline_epoch):
+def main(run_id, dataset_id, deadline_epoch, *, experiment=False):
     import importlib.metadata
     import random
     import statistics
@@ -198,14 +208,15 @@ def main(run_id, dataset_id, deadline_epoch):
         from data import encode_example
         from jev_inference.labels import select_labels
         from jev_inference.prompt import SYSTEM_PROMPT, format_prompt
-        manifest, examples = load_dataset(Path("/inputs") / dataset_id)
+        manifest, examples = load_dataset(Path("/inputs") / dataset_id, experiment=experiment)
         if manifest["dataset_id"] != dataset_id:
             raise ValueError("dataset directory identity mismatch")
-        report.update(provenance="sanitized_user_supplied_executions_with_official_historical_candles",
+        report.update(task=manifest["task"], experiment=experiment, test_evaluated=not experiment,
+                      provenance="sanitized_user_supplied_executions_with_official_historical_candles",
                       dataset_files=manifest["files"],
                       splits={s: {"count": len(examples[s]), "labels": dict(Counter(x["target_action"] for x in examples[s]))} for s in SPLITS},
                       training_method="BF16 LoRA rank16; next-hour position-side imitation; single answer token",
-                      requested_steps=MAX_STEPS, batch_size=2, gradient_accumulation=2,
+                      requested_steps=512 if experiment else MAX_STEPS, batch_size=2, gradient_accumulation=2,
                       cost_note="GPU estimate excludes preparation, startup, CPU/RAM/storage; not an invoice.",
                       limitations=["Position imitation, not profitability or causal trading policy evaluation.",
                                    "Test split is fixed; no test-based tuning or promotion.",
@@ -238,9 +249,12 @@ def main(run_id, dataset_id, deadline_epoch):
                       max_input_tokens=max(len(x["input_ids"]) for x in encoded["train"]),
                       packages={p: importlib.metadata.version(p) for p in ["unsloth", "unsloth_zoo", "torch", "transformers", "peft"]})
         report["baseline"] = {}
-        for split in ("validation", "test"):
+        for split in (("validation",) if experiment else ("validation", "test")):
             result = evaluate(model, encoded[split], labels)
             report["baseline"][split] = summarize_predictions(examples[split], result["rows"])
+            if experiment:
+                from transition_data import diagnostics
+                report["baseline_cohorts"] = diagnostics(examples[split], result["rows"], manifest["cohorts"])
             persist(); emit("baseline", split=split, metrics=report["baseline"][split])
         FastVisionModel.for_training(model)
         optimizer = torch.optim.AdamW([p for _, p in trainable], lr=1e-4, weight_decay=.01)
@@ -249,7 +263,7 @@ def main(run_id, dataset_id, deadline_epoch):
         cursor = 0
         train_start = time.monotonic()
         torch.cuda.reset_peak_memory_stats()
-        for step in range(MAX_STEPS):
+        for step in range(512 if experiment else MAX_STEPS):
             # Reserve at least 5 minutes of the immutable deadline for fixed evaluations and reload.
             if time.monotonic() - start >= 1200 or time.time() >= deadline_epoch - 330:
                 emit("training_time_limit", completed_steps=len(losses)); break
@@ -302,9 +316,22 @@ def main(run_id, dataset_id, deadline_epoch):
                                    for p in adapter.iterdir() if p.is_file()}
         report["after"] = {}
         parity_before = []
-        for split in ("validation", "test"):
+        for split in (("validation",) if experiment else ("validation", "test")):
             result = evaluate(model, encoded[split], labels)
             report["after"][split] = summarize_predictions(examples[split], result["rows"])
+            if experiment:
+                from transition_data import diagnostics
+                report["after_cohorts"] = diagnostics(examples[split], result["rows"], manifest["cohorts"])
+                (out / "validation-predictions.json").write_text(json.dumps([
+                    {"cutoff": row["cutoff"], "target": row["target_action"],
+                     "previous": row["previous_action"],
+                     "prediction": row["job"].options[pred["prediction"]].name,
+                     "option_order": [x.name for x in row["job"].options], "logits": pred["logits"]}
+                    for row, pred in zip(examples[split], result["rows"])
+                ], indent=2)+"\n")
+                from transition_data import diagnostic_gate
+                report["diagnostic_gate"] = diagnostic_gate(report["baseline_cohorts"], report["after_cohorts"])
+                report["promotion_gate"] = {"passed": False, "reason": "Diagnostic validation only; no independent test, cross-market validation or cost-adjusted rollout."}
             if split == "validation":
                 parity_before = result["rows"][:12]
             persist(); emit("after", split=split, metrics=report["after"][split])
@@ -342,4 +369,4 @@ def main(run_id, dataset_id, deadline_epoch):
 
 if __name__ == "__main__":
     import sys
-    main(sys.argv[1], sys.argv[2], float(sys.argv[3]))
+    main(sys.argv[1], sys.argv[2], float(sys.argv[3]), experiment="--market-only-v2" in sys.argv[4:])

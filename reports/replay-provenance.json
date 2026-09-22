@@ -1,5 +1,5 @@
 {
-  "stage": "pilot_completed_main_running",
+  "stage": "paused_model_validation_failed",
   "targetRange": [
     "2025-12-26T08:00:00Z",
     "2026-09-22T08:00:00Z"
@@ -27,6 +27,24 @@
     "Source Binance Spot USDT; current site live charts use Kraken USD",
     "Current model predicts next-hour position; strategy holds for4hours",
     "Initial flat; prior decisions carried forward; no real orders",
-    "No full five-year result yet"
-  ]
+    "No full five-year result yet",
+    "Main replay is paused; no completion ETA. Published 20-decision pilot remains unchanged."
+  ],
+  "pauseReason": "Persistence baseline not beaten; sampled replay predictions remained flat. GPU replay and automatic publication canceled for corrective diagnosis.",
+  "stoppedCheckpoint": {
+    "completedDecisions": 7100,
+    "completedCutoffs": 710,
+    "elapsedSeconds": 419.469033969,
+    "reservedBudgetUsd": 6.0,
+    "conservativeRateUsdSecond": 0.0013,
+    "identity": "7a16c89c3b8566cb6055036944762837fbd75cb80f6efadda63f65472e7747b4",
+    "batchGate": "passed"
+  },
+  "inspectedSnapshot": {
+    "decisions": 6590,
+    "actions": {
+      "flat": 6590
+    },
+    "positionChanges": 0
+  }
 }
