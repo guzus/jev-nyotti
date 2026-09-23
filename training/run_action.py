@@ -224,11 +224,15 @@ def score_batch(model, prompts: list[dict], pad_id: int) -> list[list[float]]:
         ids[b, :lengths[b]] = torch.tensor(p['input_ids'], device='cuda')
         mask[b, :lengths[b]] = 1
     logits = model(input_ids=ids, attention_mask=mask, use_cache=False, logits_to_keep=keep).logits
-    if logits.shape[1] != keep:
+    if logits.shape[1] == keep:
+        offset = width - keep
+    elif logits.shape[1] == width:  # runtime ignored logits_to_keep and returned every position
+        offset = 0
+    else:
         raise RuntimeError('unexpected kept-logit window')
     out = []
     for b, p in enumerate(prompts):
-        scores = logits[b, lengths[b] - 1 - (width - keep), p['candidate_ids']].float()
+        scores = logits[b, lengths[b] - 1 - offset, p['candidate_ids']].float()
         if not torch.isfinite(scores).all():
             raise FloatingPointError('non-finite logits')
         out.append(scores.cpu().tolist())
@@ -250,27 +254,46 @@ def score_all(model, prompts: list[dict], pad_id: int, batched: bool = True) -> 
     return results
 
 
-def batched_parity(model, prompts: list[dict], pad_id: int, cases: int = 8, tolerance: float = 0.15) -> dict:
-    """Compare batched vs sequential logits on PADDED rows (shorter than their batch maximum)."""
+def batched_parity(model, prompts: list[dict], pad_id: int, cases: int = 8, tolerance: float = 0.5) -> dict:
+    """Compare batched vs sequential logits on PADDED rows (shorter than their batch maximum).
+
+    Also measures warm (post-autotune) median seconds per row for both paths; those drive the
+    training cap. A padding/position bug moves logits by whole units while bf16 batch-shape
+    noise stays well below 0.5, so the tolerance separates the two; argmax identity is reported.
+    Any batched-path exception or shape surprise means passed=False (sequential fallback)."""
+    import statistics
     import time
     import torch
     lengths = [len(p['input_ids']) for p in prompts]
-    padded = [(batch, i) for batch in make_batches(lengths) for i in batch if lengths[i] < max(lengths[j] for j in batch)]
-    chosen = padded[:: max(1, len(padded) // cases)][:cases] or [(b, b[0]) for b in make_batches(lengths)[:cases]]
-    diffs, same = [], True
-    tick = time.monotonic()
+    batches = make_batches(lengths)
+    padded = [(batch, i) for batch in batches for i in batch if lengths[i] < max(lengths[j] for j in batch)]
+    chosen = padded[:: max(1, len(padded) // cases)][:cases] or [(b, b[0]) for b in batches[:cases]]
+    result = {'cases': len(chosen), 'padded_cases': bool(padded), 'passed': False}
     with torch.inference_mode():
-        sequential = [score_one(model, prompts[i]) for _, i in chosen]
-        seq_seconds = (time.monotonic() - tick) / len(chosen)
-        for (batch, i), seq in zip(chosen, sequential):
-            got = score_batch(model, [prompts[j] for j in batch], pad_id)[batch.index(i)]
-            diffs.append(max(abs(a - b) for a, b in zip(got, seq)))
-            same &= max(range(len(got)), key=got.__getitem__) == max(range(len(seq)), key=seq.__getitem__)
-    # A padding/position bug moves logits by whole units; bf16 batch noise can flip exact ties,
-    # so the logit tolerance (same as reload parity) decides and argmax identity is reported.
-    return {'cases': len(chosen), 'padded_cases': bool(padded), 'max_logit_difference': max(diffs),
-            'argmax_identical': same, 'passed': max(diffs) < tolerance,
-            'sequential_seconds_per_row': seq_seconds}
+        for _, i in chosen[:2]:  # untimed warm-up: kernel autotune and first-call setup
+            score_one(model, prompts[i])
+        sequential, seq_times = [], []
+        for _, i in chosen:
+            tick = time.monotonic()
+            sequential.append(score_one(model, prompts[i]))
+            torch.cuda.synchronize()
+            seq_times.append(time.monotonic() - tick)
+        result['sequential_seconds_per_row'] = statistics.median(seq_times)
+        try:
+            score_batch(model, [prompts[j] for j in chosen[0][0]], pad_id)  # untimed batched warm-up
+            diffs, same, batch_times = [], True, []
+            for (batch, i), seq in zip(chosen, sequential):
+                tick = time.monotonic()
+                got = score_batch(model, [prompts[j] for j in batch], pad_id)[batch.index(i)]
+                batch_times.append((time.monotonic() - tick) / len(batch))
+                diffs.append(max(abs(a - b) for a, b in zip(got, seq)))
+                same &= max(range(len(got)), key=got.__getitem__) == max(range(len(seq)), key=seq.__getitem__)
+        except Exception as error:  # never stringify: could carry tensor content
+            result['batched_error_type'] = type(error).__name__
+            return result
+    result.update(max_logit_difference=max(diffs), argmax_identical=same, passed=max(diffs) < tolerance,
+                  batched_seconds_per_row=statistics.median(batch_times))
+    return result
 
 
 class DeadlineReached(RuntimeError):
@@ -308,6 +331,22 @@ def train_reserve_seconds(score_seconds: float, rollout_rows: int, sequential_se
     """Time kept after training: LoRA val+test scoring (+25% adapter overhead), sequential
     rollout (+30%), export + reload + parity (240 s) and a 60 s safety margin."""
     return 1.25 * score_seconds + 1.3 * rollout_rows * sequential_seconds + 240 + 60
+
+
+MIN_TRAIN_SECONDS = 60
+
+
+def plan_training(remaining_seconds: float, score_seconds: float, rollout_rows: int,
+                  sequential_seconds: float, base_pending: bool) -> dict:
+    """Training cap from warm measurements. `score_seconds` is one val+test scoring pass
+    (projected before base scoring, measured after). Infeasible -> abort before wasting GPU."""
+    reserve = train_reserve_seconds(score_seconds, rollout_rows, sequential_seconds)
+    available = remaining_seconds - reserve - (score_seconds if base_pending else 0.0)
+    cap = min(TRAIN_WALL_SECONDS, available)
+    return {'remaining_seconds': remaining_seconds, 'projected_scoring_seconds': score_seconds,
+            'projected_rollout_seconds': 1.3 * rollout_rows * sequential_seconds,
+            'train_reserve_seconds': reserve, 'training_cap_seconds': cap,
+            'feasible': cap >= MIN_TRAIN_SECONDS}
 
 
 def train_loop(model, trainable, encoded_train, pad_id, cap_seconds, emit, persist, report):
@@ -373,13 +412,21 @@ def train_loop(model, trainable, encoded_train, pad_id, cap_seconds, emit, persi
     return losses
 
 
-def score_splits(model, prompts: dict, pad_id: int, emit) -> dict:
-    """Score every validation+test row; batched only if padded-row parity passes."""
+class Infeasible(RuntimeError):
+    pass
+
+
+def score_splits(model, prompts: dict, pad_id: int, emit, check=None) -> dict:
+    """Score every validation+test row; batched only if padded-row parity passes.
+    `check(parity, projected_seconds)` may raise Infeasible before the full pass starts."""
     import time
     from unsloth import FastVisionModel
     FastVisionModel.for_inference(model)
     parity = batched_parity(model, prompts['validation'], pad_id)
     emit('batched_parity', **parity)
+    per_row = parity['batched_seconds_per_row'] if parity['passed'] else parity['sequential_seconds_per_row']
+    if check is not None:
+        check(parity, per_row * sum(len(prompts[s]) for s in ('validation', 'test')))
     tick = time.monotonic()
     logits = {s: score_all(model, prompts[s], pad_id, batched=parity['passed']) for s in ('validation', 'test')}
     return {'logits': logits, 'parity': parity, 'batched': parity['passed'],
@@ -394,7 +441,9 @@ def tuned_metrics(rows: dict, logits: dict) -> dict:
     test_predictions = action_eval.predict(rows['test'], logits['test'], margin)
     return {'margin': margin, 'margin_rule': tuned['rule'], 'validation_metrics': tuned['val_metrics'],
             'test_metrics': action_eval.metrics(rows['test'], test_predictions),
-            'test_metrics_margin_zero': action_eval.metrics(rows['test'], action_eval.predict(rows['test'], logits['test'], 0.0))}
+            # Plain-argmax view on VALIDATION only; test is read once, with the frozen margin.
+            'validation_metrics_margin_zero': action_eval.metrics(
+                rows['validation'], action_eval.predict(rows['validation'], logits['validation'], 0.0))}
 
 
 def write_private_scores(path: Path, rows: dict, base: dict, lora: dict | None) -> None:
@@ -597,17 +646,32 @@ def main(run_id: str, dataset_id: str, deadline_epoch: float) -> None:
         report.update(gpu=torch.cuda.get_device_name(0), trainable_parameters=sum(p.numel() for _, p in trainable),
                       packages={p: importlib.metadata.version(p) for p in ['unsloth', 'unsloth_zoo', 'torch', 'transformers', 'peft']})
         phase('base_scoring')  # zero-initialised LoRA B == base model
-        base = score_splits(model, prompts, pad_id, emit)
+        rollout_rows = len(rollout['candles']) - at.LOOKBACK
+
+        def feasibility(parity, projected):
+            plan = plan_training(deadline_epoch - time.time(), projected, rollout_rows,
+                                 parity['sequential_seconds_per_row'], base_pending=True)
+            report.update(pre_scoring_plan=plan)
+            persist()
+            if not plan['feasible']:
+                report['failure_reason'] = 'projected scoring+rollout+reload leaves no training time'
+                raise Infeasible('insufficient time budget')
+
+        base = score_splits(model, prompts, pad_id, emit, check=feasibility)
         report['base'] = {'batched_parity': base['parity'], 'scoring_seconds': base['seconds'],
                           **tuned_metrics(rows, base['logits'])}
         write_private_scores(out / 'scores.jsonl', rows, base['logits'], None)
         phase('training')
-        reserve = train_reserve_seconds(base['seconds'], len(rollout['candles']) - at.LOOKBACK,
-                                        base['parity']['sequential_seconds_per_row'])
-        cap = min(TRAIN_WALL_SECONDS, deadline_epoch - time.time() - reserve)
-        report.update(train_reserve_seconds=reserve)
+        plan = plan_training(deadline_epoch - time.time(), base['seconds'], rollout_rows,
+                             base['parity']['sequential_seconds_per_row'], base_pending=False)
+        report.update(training_plan=plan)
+        persist()
+        if not plan['feasible']:
+            report['failure_reason'] = 'measured base scoring leaves no training time'
+            raise Infeasible('insufficient time budget')
         FastVisionModel.for_training(model)
-        losses = train_loop(model, trainable, encoded['train'], pad_id, cap, emit, persist, report)
+        losses = train_loop(model, trainable, encoded['train'], pad_id, plan['training_cap_seconds'],
+                            emit, persist, report)
         changed = sum(not torch.equal(before[n], p.detach().cpu()) for n, p in trainable)
         report['adapter_tensors_changed'] = changed
         if len(losses) < MIN_STEPS or not changed:

@@ -47,12 +47,17 @@ def train(run_id: str, dataset_id: str, deadline_epoch: float):
     run_id, dataset_id = valid_id(run_id), valid_id(dataset_id)
     # Immutable dispatch deadline: rescheduling or queueing never extends paid time.
     remaining = min(MAX_SECONDS - 30, deadline_epoch - time.time() - 30)
-    if remaining <= 0:
+    report_path = Path('/artifacts') / run_id / 'report.json'
+    if remaining <= 0:  # leave a terminal report so --fetch-call-id never reports "running" forever
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(dict(run_id=run_id, dataset_id=dataset_id, status='failed',
+                                               worker_error_type='DeadlineExpiredBeforeStart',
+                                               production_promoted=False), indent=2) + '\n')
+        artifacts.commit()
         raise TimeoutError('dispatch deadline expired before worker start')
     watchdog = threading.Timer(remaining + 20, lambda: os._exit(124))
     watchdog.daemon = True
     watchdog.start()
-    report_path = Path('/artifacts') / run_id / 'report.json'
     try:
         subprocess.run([sys.executable, '/opt/training/run_action.py', run_id, dataset_id, str(deadline_epoch)],
                        check=True, timeout=remaining)

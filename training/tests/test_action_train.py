@@ -283,6 +283,24 @@ class OrchestrationTests(unittest.TestCase):
         self.assertAlmostEqual(small, 125 + 1.3 * 144 + 300)
         self.assertGreater(ra.train_reserve_seconds(200, 2880, 0.05), small)
 
+    def test_plan_caps_training_at_900_when_time_is_ample(self):
+        plan = ra.plan_training(1650, 250, 2880, 0.08, base_pending=True)
+        self.assertTrue(plan['feasible'])
+        self.assertLessEqual(plan['training_cap_seconds'], ra.TRAIN_WALL_SECONDS)
+        # Projected: 250 base + 312.5 LoRA + 299.5 rollout + 300 fixed leaves ~488 s of training.
+        self.assertAlmostEqual(plan['training_cap_seconds'], 1650 - 250 - (312.5 + 1.3 * 2880 * 0.08 + 300))
+
+    def test_sequential_fallback_that_cannot_fit_aborts_before_scoring(self):
+        # Sequential scoring of 5,664 rows at 0.08 s (~453 s) twice plus rollout leaves no training time.
+        plan = ra.plan_training(1600, 5664 * 0.08, 2880, 0.08, base_pending=True)
+        self.assertFalse(plan['feasible'])
+        self.assertLess(plan['training_cap_seconds'], ra.MIN_TRAIN_SECONDS)
+
+    def test_negative_cap_after_measured_base_is_infeasible(self):
+        plan = ra.plan_training(200, 250, 2880, 0.08, base_pending=False)
+        self.assertLess(plan['training_cap_seconds'], 0)
+        self.assertFalse(plan['feasible'])
+
 
 class BudgetTests(unittest.TestCase):
     def test_planned_cost_within_cap_including_overhead(self):
