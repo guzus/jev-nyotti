@@ -7,6 +7,7 @@ import unittest
 
 from jev_inference import action_task as at
 from jev_inference.labels import Label
+import action_eval  # noqa: F401  (imported before sys.modules patching in rollout tests)
 import run_action as ra
 
 T0 = 1520000000 - 1520000000 % at.STEP  # 15m boundary
@@ -132,10 +133,13 @@ class DatasetValidationTests(unittest.TestCase):
         self.fx.rows['test'][1]['cutoff_epoch'] += at.STEP
         self.rejects('invalid row: test.jsonl:2')
 
-    def test_split_order_and_chronology_enforced(self):
-        self.fx.rows['validation'], self.fx.rows['test'] = self.fx.rows['validation'] * 1, self.fx.rows['test']
+    def test_unordered_cutoffs_within_split_rejected(self):
         self.fx.rows['train'] = list(reversed(self.fx.rows['train']))
-        self.rejects('unordered|invalid row')
+        self.rejects('invalid row: train.jsonl:2')
+
+    def test_splits_must_be_chronological(self):
+        self.fx.rows['validation'] = [make_row('validation', 0, 'short', 'hold')]  # same cutoff as train[0]
+        self.rejects('chronological')
 
     def test_split_count_mismatch_rejected(self):
         self.fx.write(lambda m: m['splits']['train']['written'].update(total=99))
@@ -216,6 +220,68 @@ class ScoringHelperTests(unittest.TestCase):
     def test_rollout_summary_drops_price_bearing_decisions(self):
         summary = ra.rollout_summary({'opens': 1, 'decisions': [{'price': 9000.0}]})
         self.assertEqual(summary, {'opens': 1})
+
+
+class OrchestrationTests(unittest.TestCase):
+    """Margin/metrics wiring and the closed-loop rollout policy with a fake scorer (no torch)."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.fx = Fixture(Path(self.temp.name))
+        self.fx.write()
+        _, self.rows, self.rollout, self.baseline = ra.load_action_dataset(self.fx.dir)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_tuned_metrics_uses_validation_margin_on_test(self):
+        logits = {s: [[0.0] * len(r['job']['options']) for r in self.rows[s]] for s in ('validation', 'test')}
+        result = ra.tuned_metrics(self.rows, logits)
+        self.assertIn(result['margin'], [round(x * 0.05 - 10, 2) for x in range(401)])
+        self.assertEqual(result['test_metrics']['n'], len(self.rows['test']))
+        self.assertIn('trade_f1', result['validation_metrics'])
+
+    def test_rollout_policy_trades_and_keeps_prices_private(self):
+        from contextlib import nullcontext
+        from types import ModuleType
+        from unittest import mock
+        fake_torch = ModuleType('torch')
+        fake_torch.inference_mode = nullcontext
+
+        def scorer(model, prompt):  # open_long when flat, close when long
+            want = 'open_long' if 'open_long' in prompt['names'] else 'close'
+            return [1.0 if n == want else 0.0 for n in prompt['names']]
+
+        report = {}
+        ctx = dict(model=None, tokenizer=Tokenizer(), labels=EncodingTests.labels, rollout=self.rollout,
+                   deadline_epoch=4e9, out=self.fx.dir, report=report)
+        with mock.patch.dict('sys.modules', torch=fake_torch), mock.patch.object(ra, 'score_one', scorer):
+            result = ra.run_rollout(ctx, margin=0.0)
+        self.assertEqual(report['rollout']['status'], 'completed')
+        self.assertEqual((result['opens'], result['closes']), (2, 2))
+        self.assertNotIn('decisions', report['rollout'])
+        private = json.loads((self.fx.dir / 'rollout_decisions.json').read_text())
+        self.assertEqual(len(private), 4)
+        self.assertIn('logits', private[0])
+
+    def test_rollout_deadline_is_reported_as_skipped(self):
+        from contextlib import nullcontext
+        from types import ModuleType
+        from unittest import mock
+        fake_torch = ModuleType('torch')
+        fake_torch.inference_mode = nullcontext
+        report = {}
+        ctx = dict(model=None, tokenizer=Tokenizer(), labels=EncodingTests.labels, rollout=self.rollout,
+                   deadline_epoch=0.0, out=self.fx.dir, report=report)
+        with mock.patch.dict('sys.modules', torch=fake_torch):
+            stand_in = ra.run_rollout(ctx, margin=0.0)
+        self.assertEqual(report['rollout']['status'], 'skipped_deadline')
+        self.assertEqual(stand_in['opens'], 0)
+
+    def test_reserve_grows_with_scoring_and_rollout_cost(self):
+        small = ra.train_reserve_seconds(100, 2880, 0.05)
+        self.assertAlmostEqual(small, 125 + 1.3 * 144 + 300)
+        self.assertGreater(ra.train_reserve_seconds(200, 2880, 0.05), small)
 
 
 class BudgetTests(unittest.TestCase):
