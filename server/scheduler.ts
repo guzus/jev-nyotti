@@ -4,6 +4,11 @@ import { ANALYSIS_CACHE_VERSION,type Decision,type TradeRequest } from './contra
 import type { Market } from './market.js';
 import { ApiError } from './errors.js';
 import type { Store } from './store.js';
+import { nextActionDue } from './action.js';
+
+export const ACTION_REFRESH_INTERVAL_MS=900000;
+/** One bounded early retry inside the same 15m window after a failed ACTION_V1 call. */
+export const ACTION_RETRY_MS=300000;
 
 export const REFRESH_INTERVAL_MS=600000;
 export const SCHEDULED_SYMBOLS:TradeRequest['symbol'][]=['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD','BNBUSD','SUIUSD','NEARUSD','PEPEUSD','ZECUSD'];
@@ -15,9 +20,12 @@ export function createScheduler(config:Config,store:Store,refresh:(request:Trade
   const owner=randomUUID();
   const identity={model:config.modelId,revision:config.modelRevision,trainingStatus:config.trainingStatus};
   const keyFor=(request:TradeRequest)=>createHash('sha256').update(JSON.stringify({version:ANALYSIS_CACHE_VERSION,...identity,...request})).digest('hex');
-  const keys=SCHEDULED_REQUESTS.map(request=>{
-    const key=keyFor(request);store.ensureSchedule(key,request,now());return key;
-  });
+  const actionMode=config.trainingStatus==='action_v1';
+  // ACTION_V1 decides only on 15m candles. 1h/4h rows stay so market views keep their persisted fallback.
+  const claimable=(request:TradeRequest)=>!actionMode||request.interval===15;
+  const keys=SCHEDULED_REQUESTS.filter(claimable).map(request=>keyFor(request));
+  for(const request of SCHEDULED_REQUESTS)store.ensureSchedule(keyFor(request),request,now());
+  const refreshMs=()=>actionMode?nextActionDue(now())-now():REFRESH_INTERVAL_MS;
   const leaseMs=config.inferenceTimeout+90000; // market timeout + inference timeout + durable-write margin
   let running:Promise<void>|null=null;
   let timer:ReturnType<typeof setTimeout>|undefined;
@@ -29,9 +37,9 @@ export function createScheduler(config:Config,store:Store,refresh:(request:Trade
     return {
       cachedDecision:decision?{...decision,cached:true}:null,
       market:row?.market?JSON.parse(row.market) as Market:null,
-      cache:{refreshIntervalMs:REFRESH_INTERVAL_MS,
+      cache:{refreshIntervalMs:actionMode?ACTION_REFRESH_INTERVAL_MS:REFRESH_INTERVAL_MS,
         checkedAt:row?.checked_at===null||row?.checked_at===undefined?null:new Date(row.checked_at).toISOString(),
-        nextRefreshAt:row&&config.scheduledAnalysisEnabled?new Date(Math.max(row.next_due,row.lease_until)).toISOString():null,
+        nextRefreshAt:row&&config.scheduledAnalysisEnabled&&claimable(request)?new Date(Math.max(row.next_due,row.lease_until)).toISOString():null,
         refreshing:!!row&&row.lease_until>now(),error:row?.error??null} satisfies CacheStatus,
     };
   }
@@ -42,7 +50,7 @@ export function createScheduler(config:Config,store:Store,refresh:(request:Trade
       const attempted=new Set<string>();
       while(!stopped) {
         if(!store.acquireWorker(owner,now(),leaseMs))break;
-        const row=store.claimSchedule(keys.filter(key=>!attempted.has(key)),now(),leaseMs,REFRESH_INTERVAL_MS);
+        const row=store.claimSchedule(keys.filter(key=>!attempted.has(key)),now(),leaseMs,refreshMs());
         if(!row)break;
         attempted.add(row.key);
         try {
@@ -51,6 +59,8 @@ export function createScheduler(config:Config,store:Store,refresh:(request:Trade
         } catch(error) {
           const message=error instanceof ApiError?error.message:'자동 분석을 갱신하지 못했습니다. 저장된 결과를 표시합니다.';
           store.finishSchedule(row.key,now(),null,message);
+          const code=error instanceof ApiError?error.code:'';
+          if(actionMode&&!['awaiting_candle','daily_limit','action_interval_unsupported'].includes(code))store.rescheduleSooner(row.key,now()+ACTION_RETRY_MS);
         }
       }
     } finally {store.releaseWorker(owner);}

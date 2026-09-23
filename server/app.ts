@@ -5,19 +5,24 @@ import { createHash,createHmac,randomUUID,timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import type { Config } from './config.js';
-import { ANALYSIS_CACHE_VERSION,systemOneSchema,tradeSchema,type Decision,type SystemOneRequest,type TradeRequest } from './contracts.js';
+import { ANALYSIS_CACHE_VERSION,systemOneSchema,tradeSchema,type Decision,type LegacyDecision,type SystemOneRequest,type TradeRequest } from './contracts.js';
 import { assembleResponse,jobsFor } from './classifier.js';
 import { ApiError } from './errors.js';
 import { createMarketReader,type Market } from './market.js';
-import { createScorer,type Scorer } from './provider.js';
+import { createActor,createScorer,type Actor,type Scorer } from './provider.js';
+import { createActionRunner } from './action.js';
 import { Store } from './store.js';
-import { createScheduler } from './scheduler.js';
+import { createScheduler,SCHEDULED_SYMBOLS } from './scheduler.js';
 import { tradingPrompt } from './trading-prompt.js';
 
-export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market?:(q:TradeRequest)=>Promise<Market>;now?:()=>number}={}) {
+export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;actor?:Actor;market?:(q:TradeRequest)=>Promise<Market>;now?:()=>number}={}) {
   const store=deps.store??new Store(config.dataDir);
   const scorer=deps.scorer??createScorer(config);
   const readMarket=deps.market??createMarketReader();
+  const actionMode=config.trainingStatus==='action_v1';
+  const actor=deps.actor??createActor(config);
+  const now=deps.now??Date.now;
+  const actions=createActionRunner(config,store,actor,now);
   const app=express();
   app.disable('x-powered-by');
   app.set('trust proxy',config.trustProxy);
@@ -68,36 +73,50 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     const cached=store.getCached(cacheKey);if(cached)return cached;
     const pending=decisionsInFlight.get(cacheKey);if(pending)return {...await pending,cached:true};
     const task=(async()=>{
+      if(actionMode) throw new ApiError(500,'wrong_mode','ACTION_V1 does not use the legacy prompt path.');
+      const trainingStatus=config.trainingStatus as 'base'|'fine_tuned';
       const started=performance.now();
       const result=await evaluate(tradingPrompt(config,market));
       const answer=result.answers.direction;
       if(answer.type!=='choice'||!(config.trainingStatus==='fine_tuned'?['long','short','flat']:['long','short','hold']).includes(answer.choice)) throw new ApiError(502,'invalid_decision','모델 판단 형식을 확인할 수 없습니다.');
-      const action=answer.choice as Decision['action'];
+      const action=answer.choice as LegacyDecision['action'];
       const labels=config.trainingStatus==='fine_tuned'?{long:'롱 포지션',short:'숏 포지션',flat:'무포지션',hold:'관망'}:{long:'상승 방향',short:'하락 방향',hold:'관망',flat:'무포지션'};
-      const decision:Decision={id:randomUUID(),...request,action,
+      const decision:LegacyDecision={id:randomUUID(),...request,action,
         summary:`제공된 종가·거래량 지표에서 ${labels[action]}의 모델 상대 점수가 가장 높았습니다. 이 문장은 결과 요약이며 모델이 생성한 매매 근거가 아닙니다.`,
         ...(config.trainingStatus==='fine_tuned'?{semantics:'next_hour_position_side' as const}:{}),
-        model:config.modelId,revision:result.metadata.model_revision,trainingStatus:config.trainingStatus,
+        model:config.modelId,revision:result.metadata.model_revision,trainingStatus,
         generatedAt:new Date().toISOString(),marketAsOf:market.asOf,latencyMs:Math.round(performance.now()-started),cached:false,
-        scores:answer.probabilities as Decision['scores'],scoreType:'model_relative_likelihood'};
+        scores:answer.probabilities as LegacyDecision['scores'],scoreType:'model_relative_likelihood'};
       store.saveDecision(cacheKey,decision);return decision;
     })();
     decisionsInFlight.set(cacheKey,task);
     try{return await task;}finally{decisionsInFlight.delete(cacheKey);}
   }
 
-  const scheduler=createScheduler(config,store,analyze,deps.now);
+  const scheduler=createScheduler(config,store,(request,saveMarket)=>actionMode?actions.run(request,readMarket,saveMarket):analyze(request,saveMarket),deps.now);
+  // ACTION_V1 decisions are immutable records; the live action log is attached on read.
+  function view(request:TradeRequest) {
+    const value=scheduler.view(request);
+    if(!actionMode||!value.cachedDecision||!('task' in value.cachedDecision))return value;
+    return {...value,cachedDecision:{...value.cachedDecision,actionLog:actions.log(request.symbol)}};
+  }
+  function decisionRequest(body:unknown) {
+    const q=tradeSchema.parse(body);
+    if(actionMode&&q.interval!==15) throw new ApiError(422,'action_interval_unsupported','ACTION_V1 모드는 15분 봉에서만 판단합니다. 1시간·4시간 차트는 시장 보기 전용입니다.');
+    return q;
+  }
 
   const readPerformance=performanceReader(config.dataDir,'reports/pnl-report.json');
   app.get('/api/performance',limit('performance',60),async(_req,res)=>{res.setHeader('Cache-Control','no-store');res.json(await readPerformance());});
   app.get('/healthz',(_req,res)=>res.json({status:'ok',service:'jev-trading-gateway'}));
   app.get('/api/status',(_req,res)=>res.json({model:config.modelId,revision:config.modelRevision,trainingStatus:config.trainingStatus,
     providerConfigured:scorer.configured,apiAuthRequired:true,inferenceMode:scorer.configured?'live':'unconfigured',
-    scoreSemantics:'uncalibrated_model_relative_likelihood',executionEnabled:false,gaMeasurementId:config.gaMeasurementId,scheduledAnalysisEnabled:config.scheduledAnalysisEnabled}));
+    scoreSemantics:'uncalibrated_model_relative_likelihood',executionEnabled:false,
+    task:actionMode?'ACTION_V1':null,decisionIntervals:actionMode?[15]:[15,60,240],gaMeasurementId:config.gaMeasurementId,scheduledAnalysisEnabled:config.scheduledAnalysisEnabled}));
   app.get('/api/market',limit('market',60),async(req,res)=>{
     const q=tradeSchema.parse({symbol:req.query.symbol,interval:Number(req.query.interval)});
     // Market reads may refresh free candles, but only the worker may run public inference.
-    const cached=scheduler.view(q);
+    const cached=view(q);
     let market:Market;
     let marketError:string|null=null;
     try {market=await readMarket(q);scheduler.saveMarket(q,market);}
@@ -106,12 +125,12 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
       market=cached.market;
       marketError=error instanceof ApiError?error.message:'시세 갱신에 실패해 저장된 시장 데이터를 표시합니다.';
     }
-    const latest=scheduler.view(q);
+    const latest=view(q);
     res.setHeader('Cache-Control','no-store');res.json({...market,cachedDecision:latest.cachedDecision,
       cache:{...latest.cache,error:marketError??latest.cache.error}});
   });
   app.post('/api/analyze',limit('analyze-read',120),async(req,res)=>{
-    res.setHeader('Cache-Control','no-store');const cached=scheduler.view(tradeSchema.parse(req.body));
+    res.setHeader('Cache-Control','no-store');const cached=view(decisionRequest(req.body));
     if(cached.cachedDecision)return res.json(cached.cachedDecision);
     res.status(202).json({status:'pending',cachedDecision:null,cache:cached.cache});
   });
@@ -130,8 +149,13 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;market
     const body=systemOneSchema.parse(req.body);
     res.json(await evaluate(body));
   });
+  app.get('/api/paper',limit('paper',60),(_req,res)=>{
+    res.setHeader('Cache-Control','no-store');
+    if(!actionMode)return res.json({task:null,symbols:[]});
+    res.json({task:'ACTION_V1',revision:config.modelRevision,intervalMinutes:15,feeBpsPerUnit:7.5,pnlUnit:'percent_of_one_unit_notional',symbols:actions.summary()(SCHEDULED_SYMBOLS)});
+  });
   app.post('/v1/trading/decisions',auth,limit('trading-read',120),async(req,res)=>{
-    res.setHeader('Cache-Control','no-store');const cached=scheduler.view(tradeSchema.parse(req.body));
+    res.setHeader('Cache-Control','no-store');const cached=view(decisionRequest(req.body));
     if(cached.cachedDecision)return res.json(cached.cachedDecision);
     res.status(202).json({status:'pending',cachedDecision:null,cache:cached.cache});
   });

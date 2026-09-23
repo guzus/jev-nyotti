@@ -5,6 +5,16 @@ import type { Market } from './market.js';
 import type { ScheduleRow } from './scheduler.js';
 import type { Decision, TradeRequest } from './contracts.js';
 import { ApiError } from './errors.js';
+import type { ActionDecision, ActionLogRow } from './contracts.js';
+import type { PaperPosition, PaperSide } from './paper.js';
+
+export type PaperInventory = {position:PaperPosition;realizedPct:number;feesPct:number;trades:number;updatedCutoff:number|null;markPrice:number|null};
+type InventoryRow = {symbol:string;revision:string;side:PaperSide;units:number;entry_price:number|null;opened_at:number|null;last_trade_at:number|null;
+  realized_pct:number;fees_pct:number;trades:number;updated_cutoff:number;mark_price:number};
+function inventoryFrom(row:InventoryRow):PaperInventory {
+  return {position:{side:row.side,units:row.units,entry_price:row.entry_price,opened_at:row.opened_at,last_trade_at:row.last_trade_at},
+    realizedPct:row.realized_pct,feesPct:row.fees_pct,trades:row.trades,updatedCutoff:row.updated_cutoff,markPrice:row.mark_price};
+}
 
 export class Store {
   readonly db:DatabaseSync;
@@ -16,7 +26,16 @@ export class Store {
       CREATE TABLE IF NOT EXISTS rates (bucket TEXT PRIMARY KEY, used INTEGER NOT NULL, expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS decisions (id TEXT PRIMARY KEY, cache_key TEXT UNIQUE NOT NULL, created INTEGER NOT NULL, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS analysis_schedule (key TEXT PRIMARY KEY, request TEXT NOT NULL, next_due INTEGER NOT NULL, checked_at INTEGER, lease_until INTEGER NOT NULL DEFAULT 0, error TEXT, market TEXT, decision_id TEXT);
-      CREATE TABLE IF NOT EXISTS analysis_worker (id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT NOT NULL, lease_until INTEGER NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS analysis_worker (id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT NOT NULL, lease_until INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS paper_inventory (symbol TEXT NOT NULL, revision TEXT NOT NULL,
+        side TEXT NOT NULL CHECK(side IN ('flat','long','short')), units REAL NOT NULL, entry_price REAL, opened_at INTEGER, last_trade_at INTEGER,
+        realized_pct REAL NOT NULL, fees_pct REAL NOT NULL, trades INTEGER NOT NULL, updated_cutoff INTEGER NOT NULL, mark_price REAL NOT NULL,
+        PRIMARY KEY(symbol,revision));
+      CREATE TABLE IF NOT EXISTS paper_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT NOT NULL, revision TEXT NOT NULL,
+        cutoff INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('action','gap')), payload TEXT NOT NULL, created INTEGER NOT NULL,
+        UNIQUE(symbol,revision,cutoff,kind));
+      CREATE TRIGGER IF NOT EXISTS paper_actions_no_update BEFORE UPDATE ON paper_actions BEGIN SELECT RAISE(ABORT,'paper_actions is append-only'); END;
+      CREATE TRIGGER IF NOT EXISTS paper_actions_no_delete BEFORE DELETE ON paper_actions BEGIN SELECT RAISE(ABORT,'paper_actions is append-only'); END;`);
     this.prune();
   }
   reserveEvaluations(count:number,limit:number,now=Date.now()) {
@@ -70,6 +89,47 @@ export class Store {
   }
   finishSchedule(key:string,now:number,decisionId:string|null,error:string|null) {
     this.db.prepare('UPDATE analysis_schedule SET checked_at=?,lease_until=0,error=?,decision_id=COALESCE(?,decision_id) WHERE key=?').run(now,error,decisionId,key);
+  }
+  rescheduleSooner(key:string,at:number) {
+    this.db.prepare('UPDATE analysis_schedule SET next_due=MIN(next_due,?) WHERE key=?').run(at,key);
+  }
+  getInventory(symbol:string,revision:string):PaperInventory|null {
+    const row=this.db.prepare('SELECT * FROM paper_inventory WHERE symbol=? AND revision=?').get(symbol,revision) as InventoryRow|undefined;
+    return row?inventoryFrom(row):null;
+  }
+  listInventories(revision:string):(PaperInventory&{symbol:string})[] {
+    return (this.db.prepare('SELECT * FROM paper_inventory WHERE revision=?').all(revision) as InventoryRow[]).map(row=>({symbol:row.symbol,...inventoryFrom(row)}));
+  }
+  listActions(symbol:string,revision:string,limit=50):ActionLogRow[] {
+    return (this.db.prepare('SELECT payload FROM paper_actions WHERE symbol=? AND revision=? ORDER BY cutoff DESC,id DESC LIMIT ?').all(symbol,revision,limit) as {payload:string}[]).map(r=>JSON.parse(r.payload));
+  }
+  /** Applies one ACTION_V1 cutoff atomically and at most once. `expectedCutoff`
+   * is the inventory cutoff whose position was sent to the model; if another
+   * writer advanced it meanwhile, nothing is written. */
+  commitPaperAction(input:{symbol:string;revision:string;expectedCutoff:number|null;cutoff:number;inventory:PaperInventory;
+    rows:ActionLogRow[];decisionKey:string;decision:ActionDecision}):'applied'|'duplicate' {
+    const {symbol,revision,cutoff,inventory:inv}=input;
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const current=this.getInventory(symbol,revision);
+      const seen=current?.updatedCutoff??null;
+      if(seen!==input.expectedCutoff||(seen!==null&&cutoff<=seen)){this.db.exec('ROLLBACK');return 'duplicate';}
+      const now=Date.now();
+      const insert=this.db.prepare('INSERT INTO paper_actions(symbol,revision,cutoff,kind,payload,created) VALUES(?,?,?,?,?,?)');
+      for(const row of input.rows)insert.run(symbol,revision,cutoff,row.kind,JSON.stringify(row),now);
+      this.db.prepare('INSERT INTO decisions(id,cache_key,created,payload) VALUES(?,?,?,?)').run(input.decision.id,input.decisionKey,now,JSON.stringify(input.decision));
+      const p=inv.position;
+      this.db.prepare(`INSERT INTO paper_inventory(symbol,revision,side,units,entry_price,opened_at,last_trade_at,realized_pct,fees_pct,trades,updated_cutoff,mark_price)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(symbol,revision) DO UPDATE SET side=excluded.side,units=excluded.units,entry_price=excluded.entry_price,
+        opened_at=excluded.opened_at,last_trade_at=excluded.last_trade_at,realized_pct=excluded.realized_pct,fees_pct=excluded.fees_pct,trades=excluded.trades,
+        updated_cutoff=excluded.updated_cutoff,mark_price=excluded.mark_price`)
+        .run(symbol,revision,p.side,p.units,p.entry_price,p.opened_at,p.last_trade_at,inv.realizedPct,inv.feesPct,inv.trades,cutoff,inv.markPrice);
+      this.db.exec('COMMIT');
+      return 'applied';
+    } catch(error) {
+      if(this.db.isTransaction)this.db.exec('ROLLBACK');
+      throw error;
+    }
   }
   prune() {
     this.db.prepare('DELETE FROM rates WHERE expires<?').run(Date.now());
