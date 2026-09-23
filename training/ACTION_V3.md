@@ -55,3 +55,20 @@ At most one Qwen LoRA dispatch (≤ $3). It is fit on March+April with flat-fami
 the prompt carries the candidate's option probabilities as `numeric_prior`. It is scored on May and
 on the confirmatory window **for reporting only**, to judge whether a future Qwen version is worth
 running.
+
+## Measured outcome — 2026-09-23: gate FAILED, not promoted
+
+[Aggregate results](ACTION_V3_RESULTS.json). Fit once on 2,436 rows (March train + April subsample).
+
+| Criterion | Value | Threshold | |
+|---|---:|---:|---|
+| May trade F1 | 0.236 | > 0.298 | **fail** |
+| Predicted / teacher trade rate | 4.14× | 0.5–2× | **fail** |
+| May action macro-F1 | 0.151 | > 0.109 | pass |
+| Confirmatory closed loop, 2026-07-24 → 08-23 | 70 opens, 69 closes, 62 % in position | ≥ 5 / ≥ 5, 5–95 % | pass |
+
+The frozen +0.10 margin came from the March-only fit and was miscalibrated after the refit, so
+the policy over-trades. The confirmatory window shows it does not get stuck, but it is not
+profitable: −17.2 % fee-inclusive paper return (22.7 % fees), 20.7 % max drawdown. The previously
+viewed window (08-23 → 09-22) was −32.2 %. Every policy tested in V1–V3 that trades loses money
+after 7.5 bps fees at this cadence. Production is unchanged.
