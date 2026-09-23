@@ -95,9 +95,11 @@ def check_position(position: dict, cutoff: int) -> None:
 
 
 def check_candle_open(candles: list[dict]) -> None:
-    # action_task validates close within [low, high]; the open must be as well.
+    # BitMEX-derived training opens are the previous close and may lie outside [low, high];
+    # action_task validates close/low/high. Only require a positive open here so training-period
+    # candles remain replayable through /action for parity checks.
     for c in candles:
-        if not c["low"] <= c["open"] <= c["high"]:
+        if not c["open"] > 0:
             raise ValueError("invalid OHLCV")
 
 

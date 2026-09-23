@@ -136,7 +136,7 @@ def test_gaps_and_unfinished_ranges_fail_before_any_scoring():
     with pytest.raises(ValueError):
         plan(unaligned)
     bad = manifest()
-    bad["series"][0]["candles"][3]["open"] = 1e9
+    bad["series"][0]["candles"][3]["open"] = -1.0
     with pytest.raises(ValueError, match="OHLCV"):
         plan(bad)
 

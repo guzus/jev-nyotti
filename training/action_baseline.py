@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import action_eval as ev  # noqa: E402
 
 FAMILY = {'flat': 'flat', 'long': 'position', 'short': 'position'}
+C_GRID = (0.01, 0.05, 0.2, 1.0)
 OPTIONS = {'flat': ('hold', 'open_long', 'open_short'), 'position': ('hold', 'add', 'reduce', 'close')}
 
 
@@ -29,7 +30,7 @@ def vector(state: dict) -> list[float]:
     since = p.get('minutes_since_last_execution')
     x = [f[k] for k in ('return_1h_pct', 'return_4h_pct', 'return_24h_pct', 'rsi14', 'volatility_pct',
                         'from_24h_high_pct', 'from_24h_low_pct', 'last_volume_rel')]
-    for c in state['recent_closed_candles'][-4:]:
+    for c in state['recent_closed_candles']:
         x += [c['ret_pct'], c['high_pct'], c['low_pct'], c['vol_rel']]
     x += [0.0 if since is None else math.log1p(since), 1.0 if since is None else 0.0]
     if p['side'] != 'flat':
@@ -38,14 +39,14 @@ def vector(state: dict) -> list[float]:
 
 
 class Baseline:
-    def __init__(self, train_rows: list[dict]):
+    def __init__(self, train_rows: list[dict], c: float = 0.5):
         self.models = {}
         for fam, names in OPTIONS.items():
             rows = [r for r in train_rows if FAMILY[r['side']] == fam]
             X = np.array([vector(r['job']['state']) for r in rows])
             y = np.array([names.index(r['target_action']) for r in rows])
             scaler = StandardScaler().fit(X)
-            model = LogisticRegression(C=0.5, class_weight='balanced', max_iter=5000).fit(scaler.transform(X), y)
+            model = LogisticRegression(C=c, class_weight='balanced', max_iter=5000).fit(scaler.transform(X), y)
             self.models[fam] = (scaler, model, names)
 
     def logits(self, job: dict) -> list[float]:
@@ -65,8 +66,12 @@ def strip(result: dict) -> dict:
 
 def run(dataset: Path) -> dict:
     train, val, test = (read(dataset / f'{s}.jsonl') for s in ('train', 'validation', 'test'))
-    model = Baseline(train)
-    tuned = ev.tune_margin(val, [model.logits(r['job']) for r in val])
+    # L2 strength and margin are both selected on validation only (best validation trade F1).
+    fits = []
+    for c in C_GRID:
+        candidate = Baseline(train, c)
+        fits.append((candidate, c, ev.tune_margin(val, [candidate.logits(r['job']) for r in val])))
+    model, c, tuned = max(fits, key=lambda f: (f[2]['val_metrics']['trade_f1'], -abs(math.log(f[1]))))
     margin = tuned['margin']
     test_metrics = ev.metrics(test, ev.predict(test, [model.logits(r['job']) for r in test], margin))
     roll = json.loads((dataset / 'rollout.json').read_text())
@@ -76,7 +81,8 @@ def run(dataset: Path) -> dict:
     hold_test = ev.metrics(test, ['hold'] * len(test))
     hold_rollout = ev.rollout(roll['candles'], roll['start'], roll['end'], lambda job: 'hold', roll['market'])
     manifest = json.loads((dataset / 'manifest.json').read_text())
-    return dict(task='ACTION_V1', dataset_id=manifest['dataset_id'], model='logistic_regression_per_state_family',
+    return dict(task='ACTION_V1', dataset_id=manifest['dataset_id'], model='logistic_regression_per_state_family', l2_c=c, c_grid=list(C_GRID),
+                features='all prompt features, position fields and all 24 shown candles',
                 margin=margin, margin_rule=tuned['rule'], validation_metrics=tuned['val_metrics'],
                 test_metrics=test_metrics, rollout=strip(rollout),
                 gate_if_this_were_the_model=ev.gate(test_metrics, test_metrics, rollout),

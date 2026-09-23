@@ -47,7 +47,7 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
 
     let res=await post('/api/analyze',{symbol:'BTCUSD',interval:15});assert.equal(res.status,200);
     let decision=await res.json();
-    assert.equal(decision.task,'ACTION_V1');assert.equal(decision.action,'open_long');assert.equal(decision.transfer,'in_distribution');
+    assert.equal(decision.task,'ACTION_V1');assert.equal(decision.action,'open_long');assert.equal(decision.transfer,'venue_transfer');
     assert.equal(decision.paper.side,'long');assert.equal(decision.paper.units,1);assert.equal(decision.paper.realizedPct,-0.075);
     assert.equal(decision.actionLog.length,1);assert.equal(decision.options.length,3);
     assert.equal((await post('/api/analyze',{symbol:'BTCUSD',interval:60})).status,422);

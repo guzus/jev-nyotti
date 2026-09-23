@@ -33,7 +33,7 @@ export function ActionDecisionView({ decision }: { decision: ActionDecision }) {
   const top = Math.max(...decision.options.map((o) => o.probability));
   return <div className={`decision-result result-${actionTone(decision.action)}`}>
     <div className="result-direction"><span className="direction-symbol"><Icon size={30} strokeWidth={2} /></span><div><span className="direction-label">{decision.action.toUpperCase()}</span><h3>{ACTION_LABELS[decision.action]}</h3></div></div>
-    <p className={`transfer-badge ${decision.transfer}`}>{decision.transfer === 'in_distribution' ? 'BTC 15분 · 학습 분포' : '검증되지 않은 전이 · BTC로만 학습'}</p>
+    <p className={`transfer-badge ${decision.transfer}`}>{decision.transfer === 'venue_transfer' ? 'BTC 15분 · 거래소 전이 (BitMEX 학습 → Kraken)' : '검증되지 않은 전이 · BTC로만 학습'}</p>
     <div className="score-chart"><div className="score-heading"><span>행동별 모델 확률 · 관망 마진 {decision.holdMargin}</span><span>수익 확률 아님</span></div>
       {decision.options.map((o) => <div className={`score-row action-score score-${actionTone(o.name)}${o.name === decision.action ? ' score-chosen' : ''}`} key={o.name}><span>{ACTION_LABELS[o.name]}</span><div className="score-track"><div style={{ width: `${o.probability * 100}%` }} /></div><strong>{(o.probability * 100).toFixed(1)}%</strong></div>)}
       {decision.options.find((o) => o.name === decision.action)!.probability < top && <p className="experiment-note">관망에 마진을 뺀 뒤 가장 높은 행동을 선택하므로 최고 확률과 다를 수 있습니다.</p>}

@@ -22,7 +22,7 @@ const ACTION_DECISION_SCHEMA={type:'object',description:'ACTION_V1 immutable dec
   required:['id','symbol','interval','task','action','options','holdMargin','transfer','paper','missedCutoffs'],properties:{
     id:{type:'string'},symbol:{type:'string'},interval:{const:15},task:{const:'ACTION_V1'},action:ACTION_ENUM,
     options:{type:'array',items:{type:'object',properties:{name:ACTION_ENUM,probability:{type:'number'}}}},holdMargin:{type:'number'},
-    transfer:{type:'string',enum:['in_distribution','untested_transfer'],description:'Only BTCUSD matches the training market.'},
+    transfer:{type:'string',enum:['venue_transfer','untested_transfer'],description:'BTCUSD matches the training asset and cadence but not the venue (BitMEX XBTUSD training, Kraken spot serving); other coins are untested transfers.'},
     positionBefore:{type:'object',properties:{side:SIDE_ENUM,units:{type:'number'},entryPrice:{type:['number','null']}}},
     execution:{type:'object',properties:{price:{type:'number'},unitsTraded:{type:'number'},feePct:PCT,realizedPct:PCT}},
     paper:{type:'object',properties:{side:SIDE_ENUM,units:{type:'number'},entryPrice:{type:['number','null']},markPrice:{type:'number'},unitReturnPct:{type:'number'},unrealizedPct:PCT,realizedPct:PCT,feesPct:PCT,trades:{type:'integer'}}},

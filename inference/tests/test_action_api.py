@@ -160,7 +160,7 @@ def mutation(fn):
     mutation(lambda b: b["candles"].append(dict(b["candles"][-1], time=CUTOFF))),  # 97 candles
     mutation(lambda b: b.update(candles=candles(CUTOFF + action_task.STEP)[:96])),  # ends after cutoff
     mutation(lambda b: b["candles"][10].update(time=b["candles"][10]["time"] + 60)),  # gap / misaligned
-    mutation(lambda b: b["candles"][5].update(open=b["candles"][5]["high"] * 2)),    # open outside range
+    mutation(lambda b: b["candles"][5].update(open=0)),    # non-positive open (BitMEX prev-close opens may exceed range)
     mutation(lambda b: b["candles"][5].update(close=0.0, low=0.0)),
     mutation(lambda b: b["candles"][5].update(volume=-1)),
     mutation(lambda b: b["candles"][5].update(volume=True)),

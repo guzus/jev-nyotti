@@ -2,17 +2,25 @@
   "task": "ACTION_V1",
   "dataset_id": "50b21d673c9f084d",
   "model": "logistic_regression_per_state_family",
-  "margin": -0.75,
+  "l2_c": 0.01,
+  "c_grid": [
+    0.01,
+    0.05,
+    0.2,
+    1.0
+  ],
+  "features": "all prompt features, position fields and all 24 shown candles",
+  "margin": -0.15,
   "margin_rule": "max_trade_f1_within_rate_band",
   "validation_metrics": {
     "n": 2784,
     "teacher_trade_rate": 0.17959770114942528,
-    "predicted_trade_rate": 0.2579022988505747,
-    "trade_precision": 0.4554317548746518,
-    "trade_recall": 0.654,
-    "trade_f1": 0.5369458128078818,
-    "accuracy": 0.733117816091954,
-    "action_macro_f1": 0.2503889223548143,
+    "predicted_trade_rate": 0.2607758620689655,
+    "trade_precision": 0.47520661157024796,
+    "trade_recall": 0.69,
+    "trade_f1": 0.5628058727569331,
+    "accuracy": 0.7341954022988506,
+    "action_macro_f1": 0.23028407104334966,
     "action_classes": [
       "open_long",
       "open_short",
@@ -22,33 +30,33 @@
     ],
     "per_class": {
       "open_long": {
-        "precision": 0.12280701754385964,
-        "recall": 0.21649484536082475,
-        "f1": 0.15671641791044774,
+        "precision": 0.12413793103448276,
+        "recall": 0.18556701030927836,
+        "f1": 0.14876033057851237,
         "support": 97
       },
       "open_short": {
-        "precision": 0.140625,
+        "precision": 0.16822429906542055,
         "recall": 0.36363636363636365,
-        "f1": 0.2028169014084507,
+        "f1": 0.23003194888178913,
         "support": 99
       },
       "add": {
-        "precision": 0.26666666666666666,
-        "recall": 0.2376237623762376,
-        "f1": 0.25130890052356025,
+        "precision": 0.2396694214876033,
+        "recall": 0.2871287128712871,
+        "f1": 0.26126126126126126,
         "support": 101
       },
       "reduce": {
-        "precision": 0.30303030303030304,
-        "recall": 0.26666666666666666,
-        "f1": 0.28368794326241137,
+        "precision": 0.17557251908396945,
+        "recall": 0.30666666666666664,
+        "f1": 0.22330097087378642,
         "support": 75
       },
       "close": {
-        "precision": 0.34814814814814815,
-        "recall": 0.3671875,
-        "f1": 0.3574144486692016,
+        "precision": 0.30434782608695654,
+        "recall": 0.2734375,
+        "f1": 0.2880658436213992,
         "support": 128
       }
     },
@@ -63,52 +71,52 @@
       ],
       "matrix": [
         [
-          1893,
-          133,
-          182,
-          16,
-          21,
-          39
+          1903,
+          111,
+          146,
+          29,
+          60,
+          35
         ],
         [
-          38,
-          21,
-          38,
+          47,
+          18,
+          32,
           0,
           0,
           0
         ],
         [
-          46,
-          17,
+          47,
+          16,
           36,
           0,
           0,
           0
         ],
         [
-          30,
+          21,
+          0,
+          0,
+          29,
+          20,
+          31
+        ],
+        [
+          14,
           0,
           0,
           24,
-          14,
-          33
+          23,
+          14
         ],
         [
-          22,
+          26,
           0,
           0,
-          17,
-          20,
-          16
-        ],
-        [
-          37,
-          0,
-          0,
-          33,
-          11,
-          47
+          39,
+          28,
+          35
         ]
       ],
       "rows": "teacher",
@@ -118,41 +126,41 @@
       "flat": {
         "n": 1952,
         "teacher_trade_rate": 0.10040983606557377,
-        "predicted_trade_rate": 0.21875,
-        "trade_precision": 0.26229508196721313,
-        "trade_recall": 0.5714285714285714,
-        "trade_f1": 0.3595505617977528,
-        "accuracy": 0.7674180327868853
+        "predicted_trade_rate": 0.1839139344262295,
+        "trade_precision": 0.2841225626740947,
+        "trade_recall": 0.5204081632653061,
+        "trade_f1": 0.36756756756756753,
+        "accuracy": 0.795594262295082
       },
       "long": {
         "n": 333,
         "teacher_trade_rate": 0.33933933933933935,
-        "predicted_trade_rate": 0.3333333333333333,
-        "trade_precision": 0.7477477477477478,
-        "trade_recall": 0.7345132743362832,
-        "trade_f1": 0.7410714285714286,
-        "accuracy": 0.6696696696696697
+        "predicted_trade_rate": 0.37537537537537535,
+        "trade_precision": 0.712,
+        "trade_recall": 0.7876106194690266,
+        "trade_f1": 0.7478991596638657,
+        "accuracy": 0.6486486486486487
       },
       "short": {
         "n": 499,
         "teacher_trade_rate": 0.38276553106212424,
-        "predicted_trade_rate": 0.36072144288577157,
-        "trade_precision": 0.7333333333333333,
-        "trade_recall": 0.6910994764397905,
-        "trade_f1": 0.7115902964959568,
-        "accuracy": 0.6412825651302605
+        "predicted_trade_rate": 0.4849699398797595,
+        "trade_precision": 0.6363636363636364,
+        "trade_recall": 0.806282722513089,
+        "trade_f1": 0.7113163972286374,
+        "accuracy": 0.5511022044088176
       }
     }
   },
   "test_metrics": {
     "n": 2880,
     "teacher_trade_rate": 0.07430555555555556,
-    "predicted_trade_rate": 0.1232638888888889,
-    "trade_precision": 0.3380281690140845,
-    "trade_recall": 0.5607476635514018,
-    "trade_f1": 0.421792618629174,
-    "accuracy": 0.8645833333333334,
-    "action_macro_f1": 0.22752453258005878,
+    "predicted_trade_rate": 0.11909722222222222,
+    "trade_precision": 0.36443148688046645,
+    "trade_recall": 0.5841121495327103,
+    "trade_f1": 0.4488330341113106,
+    "accuracy": 0.8677083333333333,
+    "action_macro_f1": 0.19151255897593916,
     "action_classes": [
       "open_long",
       "open_short",
@@ -162,33 +170,33 @@
     ],
     "per_class": {
       "open_long": {
-        "precision": 0.12658227848101267,
-        "recall": 0.18867924528301888,
-        "f1": 0.15151515151515155,
+        "precision": 0.10891089108910891,
+        "recall": 0.20754716981132076,
+        "f1": 0.14285714285714285,
         "support": 53
       },
       "open_short": {
-        "precision": 0.0963855421686747,
-        "recall": 0.36363636363636365,
-        "f1": 0.15238095238095242,
+        "precision": 0.10344827586206896,
+        "recall": 0.20454545454545456,
+        "f1": 0.13740458015267173,
         "support": 44
       },
       "add": {
-        "precision": 0.2692307692307692,
-        "recall": 0.2,
-        "f1": 0.22950819672131148,
+        "precision": 0.18181818181818182,
+        "recall": 0.17142857142857143,
+        "f1": 0.1764705882352941,
         "support": 35
       },
       "reduce": {
-        "precision": 0.27586206896551724,
-        "recall": 0.24242424242424243,
-        "f1": 0.2580645161290323,
+        "precision": 0.14634146341463414,
+        "recall": 0.36363636363636365,
+        "f1": 0.20869565217391303,
         "support": 33
       },
       "close": {
-        "precision": 0.32727272727272727,
-        "recall": 0.3673469387755102,
-        "f1": 0.34615384615384615,
+        "precision": 0.325,
+        "recall": 0.2653061224489796,
+        "f1": 0.29213483146067415,
         "support": 49
       }
     },
@@ -203,52 +211,52 @@
       ],
       "matrix": [
         [
-          2431,
-          66,
-          138,
-          2,
-          10,
-          19
+          2448,
+          85,
+          71,
+          9,
+          40,
+          13
         ],
         [
-          31,
-          10,
-          12,
+          35,
+          11,
+          7,
           0,
           0,
           0
         ],
         [
-          25,
-          3,
-          16,
-          0,
-          0,
-          0
-        ],
-        [
-          10,
-          0,
-          0,
-          7,
-          7,
-          11
-        ],
-        [
-          13,
-          0,
-          0,
+          30,
           5,
-          8,
-          7
+          9,
+          0,
+          0,
+          0
         ],
         [
-          15,
+          8,
           0,
           0,
+          6,
+          13,
+          8
+        ],
+        [
+          8,
+          0,
+          0,
+          7,
           12,
-          4,
-          18
+          6
+        ],
+        [
+          8,
+          0,
+          0,
+          11,
+          17,
+          13
         ]
       ],
       "rows": "teacher",
@@ -258,66 +266,66 @@
       "flat": {
         "n": 2414,
         "teacher_trade_rate": 0.04018227009113504,
-        "predicted_trade_rate": 0.10149130074565037,
-        "trade_precision": 0.1673469387755102,
-        "trade_recall": 0.422680412371134,
-        "trade_f1": 0.23976608187134502,
-        "accuracy": 0.8860811930405965
+        "predicted_trade_rate": 0.07787903893951947,
+        "trade_precision": 0.1702127659574468,
+        "trade_recall": 0.32989690721649484,
+        "trade_f1": 0.22456140350877193,
+        "accuracy": 0.9034797017398508
       },
       "long": {
         "n": 440,
         "teacher_trade_rate": 0.20681818181818182,
-        "predicted_trade_rate": 0.2,
-        "trade_precision": 0.6477272727272727,
-        "trade_recall": 0.6263736263736264,
-        "trade_f1": 0.6368715083798883,
-        "accuracy": 0.775
+        "predicted_trade_rate": 0.29318181818181815,
+        "trade_precision": 0.5193798449612403,
+        "trade_recall": 0.7362637362637363,
+        "trade_f1": 0.6090909090909091,
+        "accuracy": 0.7090909090909091
       },
       "short": {
         "n": 26,
         "teacher_trade_rate": 1.0,
-        "predicted_trade_rate": 0.8461538461538461,
+        "predicted_trade_rate": 1.0,
         "trade_precision": 1.0,
-        "trade_recall": 0.8461538461538461,
-        "trade_f1": 0.9166666666666666,
-        "accuracy": 0.38461538461538464
+        "trade_recall": 1.0,
+        "trade_f1": 1.0,
+        "accuracy": 0.23076923076923078
       }
     }
   },
   "rollout": {
     "n_decisions": 2880,
     "actions": {
-      "hold": 2875,
+      "hold": 2878,
       "open_long": 1,
-      "open_short": 1,
-      "add": 2,
+      "open_short": 0,
+      "add": 0,
       "reduce": 0,
       "close": 1
     },
-    "opens": 2,
+    "opens": 1,
     "closes": 1,
-    "time_in_position_fraction": 0.9996527777777777,
-    "net_return_pct": 33.357461498034425,
-    "realized_return_pct": -6.298257224795945,
-    "fees_pct": 0.375,
-    "max_drawdown_pct": 24.094928416294948,
-    "open_at_end": true,
+    "time_in_position_fraction": 0.00034722222222222224,
+    "net_return_pct": 0.05957423339951209,
+    "realized_return_pct": 0.2095742333995121,
+    "fees_pct": 0.15,
+    "max_drawdown_pct": 0.075,
+    "open_at_end": false,
     "accounting": "unit notional; realized unit returns (position_view convention) - 7.5 bps x units traded; open position marked to the close at end without a closing fee"
   },
   "gate_if_this_were_the_model": {
     "passed": false,
     "criteria": {
       "trade_detection": {
-        "value": 0.421792618629174,
+        "value": 0.4488330341113106,
         "threshold": {
-          "greater_than": 0.421792618629174,
+          "greater_than": 0.4488330341113106,
           "always_hold": 0.0,
-          "baseline": 0.421792618629174
+          "baseline": 0.4488330341113106
         },
         "passed": false
       },
       "trade_rate_sanity": {
-        "value": 1.6588785046728973,
+        "value": 1.602803738317757,
         "threshold": {
           "min": 0.5,
           "max": 2.0
@@ -325,17 +333,17 @@
         "passed": true
       },
       "action_quality": {
-        "value": 0.22752453258005878,
+        "value": 0.19151255897593916,
         "threshold": {
-          "greater_than": 0.22752453258005878
+          "greater_than": 0.19151255897593916
         },
         "passed": false
       },
       "no_absorbing_state": {
         "value": {
-          "opens": 2,
+          "opens": 1,
           "closes": 1,
-          "time_in_position_fraction": 0.9996527777777777
+          "time_in_position_fraction": 0.00034722222222222224
         },
         "threshold": {
           "min_opens": 5,

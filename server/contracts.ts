@@ -60,7 +60,7 @@ export type ActionDecision = {
   generatedAt:string; marketAsOf:string; latencyMs:number; cached:boolean;
   scores:Partial<Record<ActionName,number>>; scoreType:'model_relative_likelihood';
   options:{name:ActionName;probability:number}[]; holdMargin:number; inputTokens:number;
-  transfer:'in_distribution'|'untested_transfer';
+  transfer:'venue_transfer'|'untested_transfer';
   positionBefore:{side:PaperSide;units:number;entryPrice:number|null};
   execution:{price:number;unitsTraded:number;feePct:number;realizedPct:number};
   paper:PaperSnapshot; missedCutoffs:number;

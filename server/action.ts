@@ -102,7 +102,7 @@ export function createActionRunner(config: Config, store: Store, actor: Actor, n
       generatedAt: new Date(now()).toISOString(), marketAsOf: market.asOf, latencyMs: Math.round(performance.now() - started), cached: false,
       scores: Object.fromEntries(raw.options.map(o => [o.name, o.probability])), scoreType: 'model_relative_likelihood',
       options: raw.options, holdMargin: raw.holdMargin, inputTokens: raw.inputTokens,
-      transfer: market.symbol === 'BTCUSD' ? 'in_distribution' : 'untested_transfer',
+      transfer: market.symbol === 'BTCUSD' ? 'venue_transfer' : 'untested_transfer',
       positionBefore: { side: before.side, units: before.units, entryPrice: before.entry_price },
       execution: { price, unitsTraded: step.unitsTraded, feePct: step.feePct, realizedPct: step.realizedPct },
       paper: { side: after.side, units: after.units, entryPrice: after.entry_price, openedAt: iso(after.opened_at), lastTradeAt: iso(after.last_trade_at),
@@ -138,7 +138,7 @@ export function createActionRunner(config: Config, store: Store, actor: Actor, n
       const p = inv?.position ?? flatPosition();
       const mark = inv?.markPrice ?? null;
       return {
-        symbol, transfer: symbol === 'BTCUSD' ? 'in_distribution' : 'untested_transfer',
+        symbol, transfer: symbol === 'BTCUSD' ? 'venue_transfer' : 'untested_transfer',
         updatedCutoff: iso(inv?.updatedCutoff ?? null),
         position: { side: p.side, units: p.units, entryPrice: p.entry_price, openedAt: iso(p.opened_at), lastTradeAt: iso(p.last_trade_at) },
         markPrice: mark, unitReturnPct: mark === null ? 0 : unitReturnPct(p.side, p.entry_price, mark),
