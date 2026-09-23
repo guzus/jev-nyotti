@@ -8,6 +8,10 @@ and a matching modal file), set `action_hold_margin` to the margin frozen on
 validation, then `modal deploy`. `image_env` validates the entry through Settings
 before any image is built. The values below are the currently deployed ones; see
 ADAPTER_DEPLOYMENT.json.
+
+Numeric CPU app (modal_action_cpu.py): the artifact file is supplied at deploy time via
+JEV_NUMERIC_MODEL_FILE, but its SHA-256 and hold margin are pinned HERE; the deploy refuses a
+file whose hash differs and the container re-verifies it at startup.
 """
 from __future__ import annotations
 
@@ -22,6 +26,26 @@ SERVING = {
         action_hold_margin=0.0,
     ),
 }
+
+# Numeric policy apps: set both pins from `training/numeric_export.py` output before deploying.
+NUMERIC_SERVING = {
+    'jev-nyotti-action-cpu': dict(numeric_model_sha256=None, action_hold_margin=None),
+}
+NUMERIC_MODEL_REMOTE_PATH = '/opt/model/numeric_policy.json'
+
+
+def numeric_image_env(app_name: str) -> dict[str, str]:
+    """Validated image environment for a numeric CPU app. Raises until both pins are set."""
+    from .settings import Settings
+
+    entry = NUMERIC_SERVING[app_name]
+    if entry['numeric_model_sha256'] is None or entry['action_hold_margin'] is None:
+        raise ValueError(f'{app_name}: pin numeric_model_sha256 and action_hold_margin in deployment.py first')
+    Settings(api_key='deployment-config-validation-only-0000', device='cpu', action_policy='numeric',
+             numeric_model_path=NUMERIC_MODEL_REMOTE_PATH, **entry)
+    return {'ACTION_POLICY': 'numeric', 'INFERENCE_DEVICE': 'cpu', 'NUMERIC_MODEL_PATH': NUMERIC_MODEL_REMOTE_PATH,
+            'NUMERIC_MODEL_SHA256': entry['numeric_model_sha256'],
+            'ACTION_HOLD_MARGIN': repr(float(entry['action_hold_margin']))}
 
 
 def image_env(app_name: str) -> dict[str, str]:

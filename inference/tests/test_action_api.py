@@ -82,6 +82,7 @@ def test_flat_action_builds_contract_job_and_reports_raw_softmax(running):
     assert response.status_code == 200, response.text
     result = response.json()
     assert result["model"] == MODEL_ID and result["revision"] == MODEL_REVISION and result["task"] == "ACTION_V1"
+    assert result["policy"] == "lora"
     assert [o["name"] for o in result["options"]] == list(action_task.FLAT_OPTIONS)
     assert result["action"] == "open_short"  # fake logits [0, 1, 2]
     expected = softmax([0.0, 1.0, 2.0])

@@ -33,3 +33,19 @@ def test_invalid_entries_fail_before_deploy(monkeypatch):
     for name in ("x", "y"):
         with pytest.raises(ValueError):
             deployment.image_env(name)
+
+
+def test_numeric_cpu_app_refuses_until_pinned(monkeypatch):
+    with pytest.raises(ValueError, match="pin numeric_model_sha256"):
+        deployment.numeric_image_env("jev-nyotti-action-cpu")
+    monkeypatch.setitem(deployment.NUMERIC_SERVING, "jev-nyotti-action-cpu",
+                        dict(numeric_model_sha256="a" * 64, action_hold_margin=0.75))
+    assert deployment.numeric_image_env("jev-nyotti-action-cpu") == {
+        "ACTION_POLICY": "numeric", "INFERENCE_DEVICE": "cpu",
+        "NUMERIC_MODEL_PATH": deployment.NUMERIC_MODEL_REMOTE_PATH,
+        "NUMERIC_MODEL_SHA256": "a" * 64, "ACTION_HOLD_MARGIN": "0.75",
+    }
+    monkeypatch.setitem(deployment.NUMERIC_SERVING, "jev-nyotti-action-cpu",
+                        dict(numeric_model_sha256="main", action_hold_margin=0.75))
+    with pytest.raises(ValueError):
+        deployment.numeric_image_env("jev-nyotti-action-cpu")
