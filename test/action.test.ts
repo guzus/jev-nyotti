@@ -40,8 +40,8 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
     await scheduler.tick();
     assert.equal(bodies.length,10,'one decision per scheduled symbol on 15m only');
     const btc=bodies.find(b=>b.market==='Kraken BTCUSD spot')!;
-    assert.equal(btc.candles.length,96);assert.equal(btc.cutoff,Date.UTC(2026,8,23,0,0)/1000);
-    assert.equal(btc.candles.at(-1)!.time+900,btc.cutoff);
+    assert.equal(btc.candles.length,96);assert.equal(btc.cutoff,'2026-09-23T00:00:00Z');
+    assert.equal((btc.candles.at(-1)!.time+900)*1000,Date.parse(btc.cutoff));
     assert.deepEqual(btc.position,{side:'flat',entry_price:null,opened_at:null,last_trade_at:null});
     await scheduler.tick();assert.equal(bodies.length,10,'same cutoff is never re-sent');
 
@@ -57,7 +57,7 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
     clock+=900000;await scheduler.tick();
     const second=bodies.filter(b=>b.market==='Kraken BTCUSD spot').at(-1)!;
     assert.equal(second.position.side,'long');assert.equal(second.position.entry_price,btc.candles.at(-1)!.close);
-    assert.equal(second.position.last_trade_at,btc.cutoff);
+    assert.equal(second.position.last_trade_at,Date.parse(btc.cutoff)/1000);
 
     clock+=3*900000;await scheduler.tick(); // two cutoffs missed (downtime): resume from latest
     decision=await (await post('/api/analyze',{symbol:'BTCUSD',interval:15})).json();

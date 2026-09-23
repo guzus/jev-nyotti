@@ -42,7 +42,8 @@ export function createScorer(config:Config):Scorer {
 // ACTION_V1: the inference service owns prompt construction (action_task.build_job).
 // The gateway sends raw closed candles and the carried paper position only.
 export type ActionRequestBody = {
-  market:string; cutoff:number; candles:Candle[];
+  /** ISO UTC `YYYY-MM-DDTHH:MM:SSZ`; candle and position times are epoch seconds. */
+  market:string; cutoff:string; candles:Candle[];
   position:{side:PaperSide;entry_price:number|null;opened_at:number|null;last_trade_at:number|null};
 };
 export const actionResponseSchema = z.object({
