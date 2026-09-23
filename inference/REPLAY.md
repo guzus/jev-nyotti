@@ -47,3 +47,38 @@ public report artifacts on main, pushes, and verifies the deployed API. Concurre
 report edits or incomplete runs stop publication. It writes a local publication
 receipt alongside the input. The normal Modal local entrypoint also saves results
 there, so the job is recoverable without further inference spend.
+
+## ACTION_V1 stateful 15-minute replay
+
+`modal_action_replay.py` (app/volume `jev-action-replay`) replays the frozen
+[ACTION_V1](../training/ACTION_V1.md) contract; pure logic is `jev_inference/action_replay.py`.
+Build input from official Binance data (fails on any gap, records archive sha256s):
+
+```
+python3 scripts/fetch_binance_replay_market.py --interval 15m --symbols "BTC ETH" \
+  --start 2026-09-01T00:00:00Z --end 2026-09-08T00:00:00Z --output-dir /abs/dir
+modal run inference/modal_action_replay.py --input-file /abs/dir/action-replay-input.json \
+  --run-id action-001 --budget-usd 0.75 --max-decisions 200 --adapter-id OWNER/REPO \
+  --adapter-revision SHA40 --adapter-sha256 SHA64 --hold-margin M
+```
+
+Input `{source, from, to, series:[{symbol, market?, candles}], provenance?}`; `[from,to)`
+are 15-minute cutoffs and `time` is candle OPEN. Each cutoff needs the 96 candles
+opening at `cutoff-96*15m .. cutoff-15m` plus the execution candle opening at `cutoff`,
+for every symbol; coverage is validated locally before a GPU is allocated.
+Every prompt comes from `action_task.build_job`; the forward candle is never model input.
+Each symbol starts flat and carries the model's OWN paper position via
+`action_task.apply_action`, executed at the close of the candle ending at the cutoff
+(1 unit open, +1 add up to 3, halve on reduce, flat on close). Omitting the adapter
+flags replays the base model. Adapter id/revision/sha256, hold margin, base revision,
+contract hash and input form the run identity; a checkpoint from a different identity
+is refused, and on resume every stored decision is re-derived from its logits and
+margin and the position chain is re-verified. Budget, watchdog, `retries=0`,
+`max_containers=1`, whole-cutoff checkpoints and the batch parity gate match the
+hourly runner above.
+
+Output: `{model, revision, task: "ACTION_V1", intervalMinutes: 15, holdMargin, from, to,
+source, generatedAt, series:[{symbol, decisions:[{marketAsOf, action, sideAfter,
+unitsAfter, price, probabilities}], candles}]}` where `to` is the completed end and
+`candles[i]` is the execution candle opening at `decisions[i].marketAsOf`. The 7.5 bps
+fee and paper PnL are for the downstream importer; they are not computed here.

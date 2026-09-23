@@ -168,6 +168,27 @@ is BF16. Differences from the Unsloth training runtime can still affect numerica
 outputs; exact weight loading is stronger evidence than a successful HTTP response
 but does not imply bitwise logit parity across runtimes.
 
+## ACTION_V1: `POST /action`
+
+Same auth, 64 KiB body limit, GPU lock, pending bound and error codes as `/score`.
+The prompt is built only by `jev_inference/action_task.build_job`
+([training/ACTION_V1.md](../training/ACTION_V1.md)); callers send market data, not prompts.
+
+```json
+{"market": "BitMEX XBTUSD", "cutoff": "2026-09-20T00:00:00Z",
+ "candles": ["...95 earlier candles...", {"time": 1789861500, "open": 1, "high": 1, "low": 1, "close": 1, "volume": 0}],
+ "position": {"side": "flat", "entry_price": null, "opened_at": null, "last_trade_at": null}}
+```
+
+`cutoff` is a UTC 15-minute boundary, not in the future. `candles` are exactly 96
+closed 15-minute candles, `time` = candle OPEN epoch seconds, the last one opening at
+`cutoff - 900`. Position times are epoch seconds and must not be after the cutoff.
+Response: `{model, revision, task: "ACTION_V1", action, options: [{name, probability}],
+holdMargin, inputTokens, elapsedMs}`. `action = argmax(logits + b)`, where `b`
+subtracts `ACTION_HOLD_MARGIN` (deployment config, `jev_inference/deployment.py`) from
+`hold` only; `probability` is the softmax of the raw logits. The caller owns the
+position state. The stateful historical replay is `modal_action_replay.py` (see REPLAY.md).
+
 ## Loading another LoRA
 
 Set both `LORA_MODEL_ID=owner/private-adapter` and `LORA_REVISION=<40-char SHA>` in

@@ -15,6 +15,8 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from . import action_task
+from .action_api import ActionOption, ActionRequest, ActionResponse, decide, job_from_request, softmax, to_scoring_job
 from .engine import Engine, InputTooLong, QwenEngine
 from .schemas import ScoreRequest, ScoreResponse
 from .settings import MAX_BODY_BYTES, MAX_INPUT_TOKENS, MAX_JOBS, MAX_OPTIONS, MODEL_ID, Settings
@@ -109,6 +111,7 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
             "revision": configuration.provenance_revision,
             "fineTuned": configuration.adapter_id is not None,
             "adapterVerification": getattr(engine, "adapter_verification", None),
+            "action": {"task": action_task.TASK, "holdMargin": configuration.action_hold_margin},
             "limits": {"jobs": MAX_JOBS, "options": MAX_OPTIONS, "inputTokensPerJob": MAX_INPUT_TOKENS, "bodyBytes": MAX_BODY_BYTES},
         }, status_code=200 if app.state.ready else 503)
 
@@ -142,6 +145,50 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
             return error(422, "input_too_long", f"Each formatted job must fit within {MAX_INPUT_TOKENS} input tokens")
         except Exception as exc:
             # Log a type only: no caller state, credentials, or exception payloads.
+            logger.error("Inference failed (%s)", type(exc).__name__)
+            return error(503, "inference_unavailable", "Inference failed; retry later")
+        finally:
+            pending -= 1
+
+    @app.post("/action", response_model=ActionResponse)
+    async def action(request: Request):
+        """ACTION_V1: one stateful 15-minute execution-action decision (not an order)."""
+        nonlocal pending
+        if not app.state.ready:
+            return error(503, "not_ready", "Model is not ready")
+        if pending >= 8:
+            return error(429, "busy", "Inference queue is full")
+        pending += 1
+        started = time.perf_counter()
+        try:
+            try:
+                payload = json.loads(await request.body(), parse_constant=reject_non_json_number)
+                parsed = ActionRequest.model_validate(payload)
+                job = to_scoring_job(job_from_request(parsed)[0])
+            except (ValueError, UnicodeError, RecursionError, ValidationError, KeyError, TypeError):
+                return error(422, "invalid_request", "Request does not match the ACTION_V1 schema")
+            names = [option.name for option in job.options]
+            async with gpu_lock:
+                prepared = await run_in_threadpool(engine.prepare, [job])
+                scores = await run_in_threadpool(engine.score, prepared)
+            if len(scores) != 1 or len(scores[0].logits) != len(names):
+                raise RuntimeError("engine returned mismatched scores")
+            logits = scores[0].logits
+            margin = configuration.action_hold_margin
+            chosen = decide(names, logits, margin)
+            return ActionResponse(
+                model=MODEL_ID,
+                revision=configuration.provenance_revision,
+                task=action_task.TASK,
+                action=chosen,
+                options=[ActionOption(name=n, probability=p) for n, p in zip(names, softmax(logits))],
+                holdMargin=margin,
+                inputTokens=scores[0].inputTokens,
+                elapsedMs=round((time.perf_counter() - started) * 1000, 3),
+            )
+        except InputTooLong:
+            return error(422, "input_too_long", f"Each formatted job must fit within {MAX_INPUT_TOKENS} input tokens")
+        except Exception as exc:
             logger.error("Inference failed (%s)", type(exc).__name__)
             return error(503, "inference_unavailable", "Inference failed; retry later")
         finally:
