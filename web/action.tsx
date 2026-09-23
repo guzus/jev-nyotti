@@ -30,7 +30,7 @@ export function actionModelLabel(d: { model: string; revision: string; policy?: 
   if (d.policy === 'numeric') {
     const kind = d.model.split('/').at(-1) ?? '';
     const version = policyInfo(d.revision)?.version;
-    return `jev뇨띠 ${version ? `${version} ` : ''}수치 정책 (${NUMERIC_KINDS[kind] ?? kind}) · Qwen 아님`;
+    return `jev뇨띠 ${version ? `${version} ` : ''}수치 정책 (${NUMERIC_KINDS[kind] ?? kind})`;
   }
   const base = d.model.split('/').at(-1) ?? d.model;
   return d.revision.includes('+lora:') ? `${base} LoRA` : `${base} 기본 모델`;

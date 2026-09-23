@@ -57,8 +57,8 @@ test('actor posts to the action origin; the gateway pins the reported numeric id
 });
 
 test('UI label comes from the response identity and is honest about non-Qwen policies', () => {
-  assert.equal(actionModelLabel({ ...numeric, policy: 'numeric' }), 'jev뇨띠 수치 정책 (로지스틱 회귀) · Qwen 아님');
-  assert.equal(actionModelLabel({ model: 'jev-numeric/hgb', revision: 'x', policy: 'numeric' }), 'jev뇨띠 수치 정책 (GBM) · Qwen 아님');
+  assert.equal(actionModelLabel({ ...numeric, policy: 'numeric' }), 'jev뇨띠 수치 정책 (로지스틱 회귀)');
+  assert.equal(actionModelLabel({ model: 'jev-numeric/hgb', revision: 'x', policy: 'numeric' }), 'jev뇨띠 수치 정책 (GBM)');
   assert.equal(actionModelLabel({ model: 'Qwen/Qwen3.5-4B', revision: 'abc+lora:guzus/jev-nyotti@def' }), 'Qwen3.5-4B LoRA');
   assert.equal(actionModelLabel({ model: 'Qwen/Qwen3.5-4B', revision: 'abc', policy: 'lora' }), 'Qwen3.5-4B 기본 모델');
 });
