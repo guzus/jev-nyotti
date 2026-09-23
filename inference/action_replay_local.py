@@ -34,6 +34,7 @@ def main(argv: list[str] | None = None) -> dict:
     args = parser.parse_args(argv)
     model = numeric_policy.load(args.numeric_model, args.numeric_sha256)
     margin = model['hold_margin'] if args.hold_margin is None else args.hold_margin
+    spec = {'rules': model['decision_rules']} if model.get('decision_rules') and args.hold_margin is None else margin
     try:  # decide() would silently favour hold on NaN
         action_task.check_margin(margin)
     except ValueError:
@@ -41,7 +42,7 @@ def main(argv: list[str] | None = None) -> dict:
     manifest = json.loads(args.input_file.read_text())
     plan = ar.Plan(manifest, now=time.time())
     identity = ar.identity(manifest, adapter_id='', adapter_revision='', adapter_sha256='',
-                           base_revision=numeric_policy.revision(model), hold_margin=margin,
+                           base_revision=numeric_policy.revision(model), hold_margin=spec,
                            policy='numeric', numeric_sha256=model['sha256'])
     args.out_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = args.out_dir / 'checkpoint.json'
@@ -66,7 +67,7 @@ def main(argv: list[str] | None = None) -> dict:
         (args.out_dir / 'status.json').write_text(json.dumps(status, allow_nan=False))
         return status
 
-    calls = ar.run(plan, state, ar.numeric_scorer(model), margin, max_decisions=args.max_decisions)
+    calls = ar.run(plan, state, ar.numeric_scorer(model), spec, max_decisions=args.max_decisions)
     status = save()  # one write at the end: CPU decisions take microseconds
     print(json.dumps(dict(calls=calls, **{k: status[k] for k in ('completedDecisions', 'completedCutoffs', 'marketThrough')})))
     return status

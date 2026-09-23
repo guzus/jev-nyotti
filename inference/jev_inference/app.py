@@ -15,7 +15,7 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from . import action_task, numeric_policy
+from . import action_task, decision_rules, numeric_policy
 from .action_api import ActionOption, ActionRequest, ActionResponse, decide, job_from_request, softmax, to_scoring_job
 from .engine import Engine, InputTooLong, QwenEngine
 from .schemas import ScoreRequest, ScoreResponse
@@ -176,7 +176,7 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
             try:
                 payload = json.loads(await request.body(), parse_constant=reject_non_json_number)
                 parsed = ActionRequest.model_validate(payload)
-                raw_job = job_from_request(parsed)[0]
+                raw_job, cutoff = job_from_request(parsed)
                 job = to_scoring_job(raw_job)
             except (ValueError, UnicodeError, RecursionError, ValidationError, KeyError, TypeError):
                 return error(422, "invalid_request", "Request does not match the ACTION_V1 schema")
@@ -187,7 +187,10 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
                 logits = [logps[n] for n in names]
                 return ActionResponse(
                     model=served_model, policy="numeric", revision=served_revision, task=action_task.TASK,
-                    action=decide(names, logits, margin),
+                    action=(decision_rules.decide(names, logits, rules=policy_model['decision_rules'],
+                                                  position=parsed.position.model_dump(), cutoff=cutoff,
+                                                  features=raw_job['state']['features'])
+                            if policy_model.get('decision_rules') else decide(names, logits, margin)),
                     options=[ActionOption(name=n, probability=p) for n, p in zip(names, softmax(logits))],
                     holdMargin=margin, inputTokens=0, elapsedMs=round((time.perf_counter() - started) * 1000, 3),
                 )

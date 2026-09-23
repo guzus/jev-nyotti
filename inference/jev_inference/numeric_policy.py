@@ -71,6 +71,11 @@ def validate(model: dict) -> dict:
     if model.get('task') != action_task.TASK or model.get('prompt_revision') != 2:
         raise ValueError('artifact was not fitted on ACTION_V1 prompt revision 2 features')
     action_task.check_margin(model.get('hold_margin'))
+    if 'decision_rules' in model:
+        from . import decision_rules
+        rules = decision_rules.validate(model['decision_rules'])
+        if rules.get('margins', 0.0) != model['hold_margin']:
+            raise ValueError('decision_rules.margins must equal hold_margin')
     if set(model['families']) != set(OPTIONS):
         raise ValueError('artifact requires flat and position families')
     for fam, fm in model['families'].items():

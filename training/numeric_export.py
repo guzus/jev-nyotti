@@ -128,6 +128,7 @@ def main() -> None:
     parser.add_argument('--pickle', type=Path, required=True)
     parser.add_argument('--hold-margin', type=json.loads, required=True, help='frozen margin: number or JSON {"flat": m, "position": m}')
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--rules', type=json.loads, help='decision_rules JSON (ACTION_V5+); margins must equal --hold-margin')
     parser.add_argument('--note', default='', help='free-text provenance stored in meta')
     args = parser.parse_args()
     if args.out.exists():
@@ -137,6 +138,12 @@ def main() -> None:
     models = loaded.models if hasattr(loaded, 'models') else loaded
     model = from_models(models, args.hold_margin, source=args.pickle.name, note=args.note,
                         source_sha256=hashlib.sha256(args.pickle.read_bytes()).hexdigest())
+    if args.rules:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'inference'))
+        from jev_inference import decision_rules
+        model['decision_rules'] = decision_rules.validate(args.rules)
+        if model['decision_rules'].get('margins', 0.0) != model['hold_margin']:
+            raise SystemExit('--rules margins must equal --hold-margin')
     worst = verify(models, model)
     sha = write(args.out, model)
     npol.load(str(args.out), sha)  # round-trip through the serving loader
