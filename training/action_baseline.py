@@ -18,22 +18,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import action_eval as ev  # noqa: E402
+import action_eval as ev  # noqa: E402  (also puts inference/ on sys.path)
+from jev_inference.numeric_policy import feature_vector as vector  # noqa: E402  canonical feature definition
 
 FAMILY = {'flat': 'flat', 'long': 'position', 'short': 'position'}
 C_GRID = (0.01, 0.05, 0.2, 1.0)
 OPTIONS = {'flat': ('hold', 'open_long', 'open_short'), 'position': ('hold', 'add', 'reduce', 'close')}
-
-
-def vector(state: dict) -> list[float]:
-    f, p = state['features'], state['position']  # prompt revision 2: side + unrealized only
-    x = [f[k] for k in ('return_1h_pct', 'return_4h_pct', 'return_24h_pct', 'rsi14', 'volatility_pct',
-                        'from_24h_high_pct', 'from_24h_low_pct', 'last_volume_rel')]
-    for c in state['recent_closed_candles']:
-        x += [c['ret_pct'], c['high_pct'], c['low_pct'], c['vol_rel']]
-    if p['side'] != 'flat':
-        x += [1.0 if p['side'] == 'long' else -1.0, p['unrealized_return_pct']]
-    return x
 
 
 class Baseline:
