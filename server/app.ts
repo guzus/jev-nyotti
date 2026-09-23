@@ -15,6 +15,21 @@ import { Store } from './store.js';
 import { createScheduler,SCHEDULED_SYMBOLS } from './scheduler.js';
 import { tradingPrompt } from './trading-prompt.js';
 
+const PCT={type:'number',description:'percent of one paper unit notional'};
+const ACTION_ENUM={type:'string',enum:['hold','open_long','open_short','add','reduce','close']};
+const SIDE_ENUM={type:'string',enum:['flat','long','short']};
+const ACTION_DECISION_SCHEMA={type:'object',description:'ACTION_V1 immutable decision for one closed 15m cutoff. action is argmax(logits + hold margin), so it need not be the highest probability.',
+  required:['id','symbol','interval','task','action','options','holdMargin','transfer','paper','missedCutoffs'],properties:{
+    id:{type:'string'},symbol:{type:'string'},interval:{const:15},task:{const:'ACTION_V1'},action:ACTION_ENUM,
+    options:{type:'array',items:{type:'object',properties:{name:ACTION_ENUM,probability:{type:'number'}}}},holdMargin:{type:'number'},
+    transfer:{type:'string',enum:['in_distribution','untested_transfer'],description:'Only BTCUSD matches the training market.'},
+    positionBefore:{type:'object',properties:{side:SIDE_ENUM,units:{type:'number'},entryPrice:{type:['number','null']}}},
+    execution:{type:'object',properties:{price:{type:'number'},unitsTraded:{type:'number'},feePct:PCT,realizedPct:PCT}},
+    paper:{type:'object',properties:{side:SIDE_ENUM,units:{type:'number'},entryPrice:{type:['number','null']},markPrice:{type:'number'},unitReturnPct:{type:'number'},unrealizedPct:PCT,realizedPct:PCT,feesPct:PCT,trades:{type:'integer'}}},
+    missedCutoffs:{type:'integer',description:'15m cutoffs skipped before this one; never backfilled'},
+    actionLog:{type:'array',description:'Latest 50 rows, newest first (kind action|gap)',items:{type:'object'}},
+  }};
+
 export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;actor?:Actor;market?:(q:TradeRequest)=>Promise<Market>;now?:()=>number}={}) {
   const store=deps.store??new Store(config.dataDir);
   const scorer=deps.scorer??createScorer(config);
@@ -162,10 +177,11 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;actor?
   app.get('/openapi.json',(_req,res)=>res.json({
     openapi:'3.1.0',info:{title:'jev뇨띠 — Qwen TypeSafe-compatible API',version:'0.1.0',description:'TypeSafe wire-format compatibility using Qwen logits. No TypeSafe model weights or calibration. Choice/score confidence = 1 − normalized entropy. Maximum 8 independent questions; input token limit enforced by model service. No order execution.'},
     servers:[{url:'/'}],
-    components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}},schemas:{SystemOne:z.toJSONSchema(systemOneSchema),TradingRequest:z.toJSONSchema(tradeSchema)}},
+    components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}},schemas:{SystemOne:z.toJSONSchema(systemOneSchema),TradingRequest:z.toJSONSchema(tradeSchema),ActionDecision:ACTION_DECISION_SCHEMA}},
     paths:{
       '/v1/systemone':{post:{operationId:'systemOne',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/SystemOne'}}}},responses:{'200':{description:'TypeSafe answers: choice / score / noul, usage and score semantics metadata'},'401':{description:'Invalid API key'},'422':{description:'Invalid request / model / token limit'},'429':{description:'Rate or daily quota exceeded'},'503':{description:'Model unavailable'},'529':{description:'At capacity'}}}},
-      '/v1/trading/decisions':{post:{operationId:'tradingDecision',description:'Reuses the persisted result for identical closed candles, symbol, interval, model revision and prompt version. Concurrent identical requests share one inference. Cache hits retain the original id, generatedAt, marketAsOf and latencyMs, set cached=true and consume no inference quota. A serial background worker checks all displayed markets every ten minutes. Public and trading-decision requests only read the latest result and cannot start inference. A cache miss returns 202 pending; failed refreshes retain the previous result.',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/TradingRequest'}}}},responses:{'200':{description:'Latest stored research stance from actual closed Kraken candles'},'202':{description:'Scheduled analysis pending; no visitor-triggered inference'},'429':{description:'Request or new-inference quota exceeded'},'503':{description:'Market or model unavailable'}}}},
+      '/v1/trading/decisions':{post:{operationId:'tradingDecision',description:'Reuses the persisted result for identical closed candles, symbol, interval, model revision and prompt version. Concurrent identical requests share one inference. Cache hits retain the original id, generatedAt, marketAsOf and latencyMs, set cached=true and consume no inference quota. A serial background worker checks all displayed markets every ten minutes. Public and trading-decision requests only read the latest result and cannot start inference. A cache miss returns 202 pending; failed refreshes retain the previous result.',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{$ref:'#/components/schemas/TradingRequest'}}}},responses:{'200':{description:'Latest stored research stance from actual closed Kraken candles. When /api/status reports task=ACTION_V1, only interval 15 is accepted (1h/4h return 422) and the body is an ActionDecision.',content:{'application/json':{schema:{oneOf:[{type:'object',description:'Legacy base/fine_tuned stance: action long|short|hold|flat with scores'},{$ref:'#/components/schemas/ActionDecision'}]}}}},'202':{description:'Scheduled analysis pending; no visitor-triggered inference'},'429':{description:'Request or new-inference quota exceeded'},'503':{description:'Market or model unavailable'}}}},
+      '/api/paper':{get:{operationId:'paperPortfolio',description:'ACTION_V1 paper inventory per scheduled symbol and model revision: position, mark, unrealized/realized % of one unit notional after 7.5 bps per unit traded, and last action. Returns task=null outside ACTION_V1 mode. No orders are executed.',responses:{'200':{description:'Paper inventory summary'}}}},
       '/v1/models':{get:{operationId:'listModels',security:[{bearerAuth:[]}],responses:{'200':{description:'Actual configured model identity'}}}},
     },
   }));
