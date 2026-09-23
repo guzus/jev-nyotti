@@ -41,3 +41,43 @@ leaderboard and findings are the deliverable. No V8 on reused windows.
   on it.
 - The paper fee is a 7.5 bps taker fee, while the source trader mostly earned maker rebates.
   Maker fills are not simulated from 15m candles.
+
+## Measured outcome — 2026-09-23: gate PASSED, deployed
+
+- **Search:** V6 model on 2023, three families, `benchmarks/runs/v7-*.jsonl`.
+- **2024 selection:** all 15 candidates were negative. The best (−1.66 %, fees 12.8 %) was
+  selected: `{"allowed": ["open_long", "open_short", "close"], "cooldown_bars": 8,
+  "margins": {"flat": -1.5, "position": -0.9}, "min_hold_bars": 32,
+  "trend_filter": "return_24h_pct"}`. V6 without rules made −141.5 % on 2024.
+
+Confirmation, 2022-04-02 → 12-31 ([results](ACTION_V7_RESULTS.json)):
+
+| | Net | Fees |
+|---|---:|---:|
+| V7 | **+19.0 %** | 15.0 % |
+| V6 | −29.2 % | 162.7 % |
+| V4 | −333.0 % | 354.0 % |
+| 1-unit hold | −70.2 % | — |
+
+- Per coin: BTC +27.1 / ETH +25.6 / SOL −14.2 / XRP +37.5. Sharpe 0.51. Next-open fills: +18.8 %.
+- All four criteria pass. BTC: 45 opens, 44 closes, 41.8 % time in position.
+
+Reported:
+
+| Window | V7 | Buy & hold |
+|---|---:|---:|
+| 2023 | +44.7 % | +311 % |
+| 2024 | −1.7 % | +114 % |
+| Leaderboard 2025-01 → 2026-06 | −15.9 % | −48.9 % |
+| 10 coins, 2026-08-23 → 09-23 | −0.6 % | — |
+
+The last 30 days on 10 coins had BTC with 0 opens.
+
+Honest reading: the cost controls are real, with fees falling from 163 % to 15 %. The positive
+2022 result coincides with a bear year and a short-leaning model. The policy has not beaten
+buy-and-hold in bull years.
+
+Deployment:
+- Artifact sha `95531fcd…`, HF `guzus/jev-nyotti-action@71fb088`.
+- The serving replay matches the lab decisions exactly.
+- The live paper book restarted.

@@ -31,9 +31,9 @@ SERVING = {
 
 # Numeric policy apps: set both pins from `training/numeric_export.py` output before deploying.
 NUMERIC_SERVING = {
-    # ACTION_V4 (training/ACTION_V4.md; gate PASSED): V3 logistic-regression weights, per-family hold margins.
-    'jev-nyotti-action-cpu': dict(numeric_model_sha256='9101f3f5d92418f0de055962354c729c47c05c3b864ea9288bbccfc666992392',
-                                  action_hold_margin={'flat': -0.68, 'position': -0.25}),
+    # ACTION_V7 (training/ACTION_V7.md; gate PASSED on unseen 2022-04..12): V6 HGB weights + decision rules.
+    'jev-nyotti-action-cpu': dict(numeric_model_sha256='95531fcda384c095101051bf689947f46177a3a97e47806d3d16bb25f157d284',
+                                  action_hold_margin={'flat': -1.5, 'position': -0.9}),
 }
 NUMERIC_MODEL_REMOTE_PATH = '/opt/model/numeric_policy.json'
 

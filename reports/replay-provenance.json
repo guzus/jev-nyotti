@@ -5,8 +5,8 @@
     "2026-09-23T00:00:00Z"
   ],
   "policy": "numeric",
-  "model": "jev-numeric/logreg",
-  "artifact_sha256": "9101f3f5d92418f0de055962354c729c47c05c3b864ea9288bbccfc666992392",
+  "model": "jev-numeric/hgb",
+  "artifact_sha256": "95531fcda384c095101051bf689947f46177a3a97e47806d3d16bb25f157d284",
   "replay": "inference/action_replay_local.py (CPU, from flat per symbol)",
   "symbols": {
     "BTCUSD": "21b69d46a62878eeaf302693e60bddd9cc318eaba905c081abe46e56acbd7cbc",
@@ -21,9 +21,9 @@
     "ZECUSD": "4524fd346ef8f9361403d29f523facf4dd52f14ae2e7189a147f3ea1a56d3f66"
   },
   "hold_margin": {
-    "flat": -0.68,
-    "position": -0.25
+    "flat": -1.5,
+    "position": -0.9
   },
-  "contract": "training/ACTION_V4.md",
-  "hf": "guzus/jev-nyotti-action@11c710beb5f4a58fd3858115b76776c04a29ab59"
+  "contract": "training/ACTION_V7.md",
+  "hf": "guzus/jev-nyotti-action@71fb08885879099d9c45be082fd8b0d733b88d07"
 }

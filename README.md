@@ -45,13 +45,15 @@ Use `Qwen/Qwen3.5-4B` as the client model. This preserves TypeSafe's wire format
 - `MODEL_TRAINING_STATUS=action_v1` switches to the [ACTION_V1](training/ACTION_V1.md) stateful mode. It makes one 15-minute paper action per coin (관망/롱 진입/숏 진입/추가/축소/청산) from a carried SQLite paper position. Each cutoff is applied once and never backfilled. Fees are 7.5 bps per unit. BTC is in-distribution; the other coins are untested transfer. No orders are executed. See [API semantics](docs/api.md#action_v1-stateful-mode).
 - Scheduled production cap: 5,000 classification questions/day, shared with authenticated `/v1/systemone` requests. Failed model calls also consume quota. Thirty scheduled checks every ten minutes yield at most 4,320 checks/day; unchanged candles skip inference (normally about 1,260 new snapshots/day across these intervals). HTTP reads have separate rate limits. This is **not a dollar spending cap**; GPU idle time, CPU/memory and storage also consume credit, and Railway billing is separate.
 
-**Live action mode (2026-09-23):** the site runs `MODEL_TRAINING_STATUS=action_v1`.
-- Every 15 minutes a **numeric logistic-regression policy** ([ACTION_V3](training/ACTION_V3.md), [HF](https://huggingface.co/guzus/jev-nyotti-action)) chooses hold / open / add / reduce / close for each coin.
-- Each coin carries its own paper position.
-- It is served from a CPU Modal app. It is **not Qwen**.
-- It **failed its pre-registered gate**: it over-trades, and its fee-inclusive paper replay is −89.8 % over 30 days across 10 coins.
-- It is shown as a labelled experiment by owner decision.
-- The Qwen LoRA attempts ([V1](training/ACTION_V1.md), [V2](training/ACTION_V2.md)) failed too. Qwen still serves `/v1/systemone`.
+**Live action mode (2026-09-23):** the site runs `MODEL_TRAINING_STATUS=action_v1` with
+**[ACTION_V7](training/ACTION_V7.md)** ([HF](https://huggingface.co/guzus/jev-nyotti-action)).
+- Every 15 minutes, per coin, a gradient-boosting imitation policy decides the next action.
+- It is trained on the full 2018–2021 BitMEX teacher history.
+- A direction-neutral rule layer carries its own paper position. It uses a 24h trend filter, a
+  32-bar minimum hold and no add/reduce.
+- It runs on a CPU Modal app. It is **not Qwen**. Qwen still serves `/v1/systemone`.
+- It passed its pre-registered gate on unseen 2022 data. It is still an educational experiment,
+  not a proven strategy (see Benchmark).
 
 ## Benchmark · autoresearch log
 
@@ -72,13 +74,16 @@ Each version is pre-registered with its gate committed before scoring (`training
 | V1 | Qwen LoRA, stateful actions | ✗ stuck in position | — |
 | V2 | Qwen LoRA, no self-referential time fields | ✗ stuck flat (flat-open AUC 0.54) | — |
 | V3 | logistic regression, Mar+Apr 2018 | ✗ over-trades 4.1× | −964 % |
-| **V4 (live)** | V3 plus per-state rate-matched margins | ✓ imitation gate | −527 % |
+| V4 | V3 plus per-state rate-matched margins | ✓ imitation gate | −527 % |
 | V5 | V4 plus cost-aware rules chosen on 2023/2024 | ✗ long beta, 98 % time in position | −126 % |
 | V6 | gradient boosting on full 2018–2021 history (17× data) | ✗ over-trades 2.29×; imitation F1 +58 % over V4 | −179 % |
+| **V7 (live)** | V6 model plus direction-neutral rules (24h trend, 32-bar hold) | ✓ +19.0 % on unseen 2022-04 → 12 (buy & hold −70 %) | **−15.9 %** |
 | 1-unit buy & hold | control | — | −49 % |
 
-"Better imitation" and "profitable" are different targets. No version has beaten buy-and-hold
-out of sample, after fees.
+"Better imitation" and "profitable" are different targets.
+- V7 is the first version to beat buy-and-hold out of sample after fees. It did so in two
+  **bear** windows (2022, 2025–26).
+- In the 2024 bull year it lost 1.7 %, while buy-and-hold made +114 %.
 
 [Training: real-data pilot and rehearsal](training/README.md) · [Deployment and recovery](docs/deployment.md) · [Inference service](inference/README.md) · [Future dataset/evaluation plan](docs/experiment.md)
 
