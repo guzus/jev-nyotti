@@ -17,6 +17,18 @@ export const ACTION_LABELS: Record<ActionName, string> = {
 const ACTION_ICONS = { hold: Minus, open_long: ArrowUpRight, open_short: ArrowDownLeft, add: Plus, reduce: Scissors, close: X };
 const SIDE_LABELS: Record<Side, string> = { flat: '무포지션', long: '롱', short: '숏' };
 export const ACTION_DISCLAIMER = '교육용 · 주문 실행 없음 · BTC 외 코인은 검증되지 않은 전이';
+const NUMERIC_KINDS: Record<string, string> = { logreg: '로지스틱 회귀', hgb: 'GBM' };
+
+/** Honest model label from the /action response identity (never a hardcoded model name). */
+export function actionModelLabel(d: { model: string; revision: string; policy?: 'lora' | 'numeric' }) {
+  if (d.policy === 'numeric') {
+    const kind = d.model.split('/').at(-1) ?? '';
+    return `jev뇨띠 수치 정책 (${NUMERIC_KINDS[kind] ?? kind}) · Qwen 아님`;
+  }
+  const base = d.model.split('/').at(-1) ?? d.model;
+  return d.revision.includes('+lora:') ? `${base} LoRA` : `${base} 기본 모델`;
+}
+
 const pct = (n: number, digits = 2) => `${n > 0 ? '+' : ''}${n.toFixed(digits)}%`;
 const tone = (n: number) => n > 0 ? 'up' : n < 0 ? 'down' : '';
 const time = (iso: string) => new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
@@ -34,7 +46,7 @@ export function ActionDecisionView({ decision }: { decision: ActionDecision }) {
   return <div className={`decision-result result-${actionTone(decision.action)}`}>
     <div className="result-direction"><span className="direction-symbol"><Icon size={30} strokeWidth={2} /></span><div><span className="direction-label">{decision.action.toUpperCase()}</span><h3>{ACTION_LABELS[decision.action]}</h3></div></div>
     <p className={`transfer-badge ${decision.transfer}`}>{decision.transfer === 'venue_transfer' ? 'BTC 15분 · 거래소 전이 (BitMEX 학습 → Kraken)' : '검증되지 않은 전이 · BTC로만 학습'}</p>
-    <div className="score-chart"><div className="score-heading"><span>행동별 모델 확률 · 관망 마진 {decision.holdMargin}</span><span>수익 확률 아님</span></div>
+    <div className="score-chart"><div className="score-heading"><span>{actionModelLabel(decision)} · 행동별 확률 · 관망 마진 {decision.holdMargin}</span><span>수익 확률 아님</span></div>
       {decision.options.map((o) => <div className={`score-row action-score score-${actionTone(o.name)}${o.name === decision.action ? ' score-chosen' : ''}`} key={o.name}><span>{ACTION_LABELS[o.name]}</span><div className="score-track"><div style={{ width: `${o.probability * 100}%` }} /></div><strong>{(o.probability * 100).toFixed(1)}%</strong></div>)}
       {decision.options.find((o) => o.name === decision.action)!.probability < top && <p className="experiment-note">관망에 마진을 뺀 뒤 가장 높은 행동을 선택하므로 최고 확률과 다를 수 있습니다.</p>}
     </div>

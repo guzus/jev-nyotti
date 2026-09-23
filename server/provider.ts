@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Config } from './config.js';
+import { actionTarget, type Config } from './config.js';
 import type { RawScores,ScoringJob } from './contracts.js';
 import { ApiError } from './errors.js';
 import type { Candle } from './market.js';
@@ -48,19 +48,22 @@ export type ActionRequestBody = {
 };
 export const actionResponseSchema = z.object({
   model:z.string().min(1),revision:z.string().min(1),task:z.literal('ACTION_V1'),action:z.enum(ALL_ACTIONS),
+  // Absent on services deployed before ACTION_POLICY existed: those served the Qwen/LoRA policy.
+  policy:z.enum(['lora','numeric']).default('lora'),
   options:z.array(z.object({name:z.enum(ALL_ACTIONS),probability:z.number().finite().min(0).max(1)})).min(3).max(4),
-  holdMargin:z.number().finite(),inputTokens:z.number().int().positive(),elapsedMs:z.number().finite().nonnegative(),
+  holdMargin:z.number().finite(),inputTokens:z.number().int().nonnegative(),elapsedMs:z.number().finite().nonnegative(),
 });
 export type ActionResponse = z.infer<typeof actionResponseSchema>;
 export interface Actor { configured:boolean; act(body:ActionRequestBody):Promise<ActionResponse>; }
 
 export function createActor(config:Config):Actor {
+  const target=actionTarget(config).url;
   return {
-    configured:!!config.inferenceUrl,
+    configured:!!target,
     async act(body) {
-      if (!config.inferenceUrl) throw new ApiError(503,'model_unconfigured','모델 서버 연결을 준비하고 있습니다. 시장 데이터는 확인할 수 있습니다.');
+      if (!target) throw new ApiError(503,'model_unconfigured','모델 서버 연결을 준비하고 있습니다. 시장 데이터는 확인할 수 있습니다.');
       try {
-        const response=await fetch(`${config.inferenceUrl}/action`,{
+        const response=await fetch(`${target}/action`,{
           method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.inferenceKey}`,
             ...(config.modalKey?{'Modal-Key':config.modalKey,'Modal-Secret':config.modalSecret}:{})},
           body:JSON.stringify(body),signal:AbortSignal.timeout(config.inferenceTimeout),redirect:'error',

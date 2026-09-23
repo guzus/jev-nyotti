@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { Config } from './config.js';
+import { actionTarget, type Config } from './config.js';
 import { ANALYSIS_CACHE_VERSION,type Decision,type TradeRequest } from './contracts.js';
 import type { Market } from './market.js';
 import { ApiError } from './errors.js';
@@ -20,7 +20,8 @@ export type ScheduleRow={key:string;request:string;next_due:number;checked_at:nu
 
 export function createScheduler(config:Config,store:Store,refresh:(request:TradeRequest,saveMarket:(market:Market)=>void)=>Promise<Decision>,now=Date.now) {
   const owner=randomUUID();
-  const identity={model:config.modelId,revision:config.modelRevision,trainingStatus:config.trainingStatus};
+  const action=config.trainingStatus==='action_v1'?actionTarget(config):null;
+  const identity={model:action?.model??config.modelId,revision:action?.revision??config.modelRevision,trainingStatus:config.trainingStatus};
   const keyFor=(request:TradeRequest)=>createHash('sha256').update(JSON.stringify({version:ANALYSIS_CACHE_VERSION,...identity,...request})).digest('hex');
   const actionMode=config.trainingStatus==='action_v1';
   // ACTION_V1 decides only on 15m candles. 1h/4h rows stay so market views keep their persisted fallback.

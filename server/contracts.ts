@@ -57,6 +57,8 @@ export type ActionLogRow = {
 export type ActionDecision = {
   id:string; symbol:TradeRequest['symbol']; interval:15; task:'ACTION_V1'; action:ActionName;
   summary:string; model:string; revision:string; trainingStatus:'action_v1';
+  /** From the /action response. Absent on decisions stored before ACTION_POLICY: those were 'lora'. */
+  policy?:'lora'|'numeric';
   generatedAt:string; marketAsOf:string; latencyMs:number; cached:boolean;
   scores:Partial<Record<ActionName,number>>; scoreType:'model_relative_likelihood';
   options:{name:ActionName;probability:number}[]; holdMargin:number; inputTokens:number;

@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import { createHash,createHmac,randomUUID,timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import type { Config } from './config.js';
+import { actionTarget, type Config } from './config.js';
 import { ANALYSIS_CACHE_VERSION,systemOneSchema,tradeSchema,type Decision,type LegacyDecision,type SystemOneRequest,type TradeRequest } from './contracts.js';
 import { assembleResponse,jobsFor } from './classifier.js';
 import { ApiError } from './errors.js';
@@ -21,6 +21,8 @@ const SIDE_ENUM={type:'string',enum:['flat','long','short']};
 const ACTION_DECISION_SCHEMA={type:'object',description:'ACTION_V1 immutable decision for one closed 15m cutoff. action is argmax(logits + hold margin), so it need not be the highest probability.',
   required:['id','symbol','interval','task','action','options','holdMargin','transfer','paper','missedCutoffs'],properties:{
     id:{type:'string'},symbol:{type:'string'},interval:{const:15},task:{const:'ACTION_V1'},action:ACTION_ENUM,
+    model:{type:'string',description:'Model reported by the /action service (e.g. Qwen/Qwen3.5-4B or jev-numeric/logreg)'},revision:{type:'string'},
+    policy:{type:'string',enum:['lora','numeric'],description:'lora = Qwen (+LoRA) logits; numeric = per-state-family numeric model, not Qwen. Absent on older records (lora).'},
     options:{type:'array',items:{type:'object',properties:{name:ACTION_ENUM,probability:{type:'number'}}}},holdMargin:{type:'number'},
     transfer:{type:'string',enum:['venue_transfer','untested_transfer'],description:'BTCUSD matches the training asset and cadence but not the venue (BitMEX XBTUSD training, Kraken spot serving); other coins are untested transfers.'},
     positionBefore:{type:'object',properties:{side:SIDE_ENUM,units:{type:'number'},entryPrice:{type:['number','null']}}},
@@ -127,7 +129,7 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;actor?
   app.get('/api/status',(_req,res)=>res.json({model:config.modelId,revision:config.modelRevision,trainingStatus:config.trainingStatus,
     providerConfigured:(actionMode?actor:scorer).configured,apiAuthRequired:true,inferenceMode:(actionMode?actor:scorer).configured?'live':'unconfigured',
     scoreSemantics:'uncalibrated_model_relative_likelihood',executionEnabled:false,
-    task:actionMode?'ACTION_V1':null,decisionIntervals:actionMode?[15]:[15,60,240],gaMeasurementId:config.gaMeasurementId,scheduledAnalysisEnabled:config.scheduledAnalysisEnabled}));
+    task:actionMode?'ACTION_V1':null,action:actionMode?{model:actionTarget(config).model,revision:actionTarget(config).revision}:null,decisionIntervals:actionMode?[15]:[15,60,240],gaMeasurementId:config.gaMeasurementId,scheduledAnalysisEnabled:config.scheduledAnalysisEnabled}));
   app.get('/api/market',limit('market',60),async(req,res)=>{
     const q=tradeSchema.parse({symbol:req.query.symbol,interval:Number(req.query.interval)});
     // Market reads may refresh free candles, but only the worker may run public inference.
@@ -167,7 +169,7 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;actor?
   app.get('/api/paper',limit('paper',60),(_req,res)=>{
     res.setHeader('Cache-Control','no-store');
     if(!actionMode)return res.json({task:null,symbols:[]});
-    res.json({task:'ACTION_V1',revision:config.modelRevision,intervalMinutes:15,feeBpsPerUnit:7.5,pnlUnit:'percent_of_one_unit_notional',symbols:actions.summary()(SCHEDULED_SYMBOLS)});
+    res.json({task:'ACTION_V1',revision:actionTarget(config).revision,intervalMinutes:15,feeBpsPerUnit:7.5,pnlUnit:'percent_of_one_unit_notional',symbols:actions.summary()(SCHEDULED_SYMBOLS)});
   });
   app.post('/v1/trading/decisions',auth,limit('trading-read',120),async(req,res)=>{
     res.setHeader('Cache-Control','no-store');const cached=view(decisionRequest(req.body));

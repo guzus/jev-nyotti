@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { Config } from './config.js';
+import { actionTarget, type Config } from './config.js';
 import type { ActionDecision, ActionLogRow, TradeRequest } from './contracts.js';
 import { ApiError } from './errors.js';
 import type { Market } from './market.js';
@@ -46,7 +46,8 @@ export function nextActionDue(now: number) {
 }
 
 export function validateActionResponse(raw: ActionResponse, position: PaperPosition, config: Config) {
-  if (raw.model !== config.modelId || raw.revision !== config.modelRevision) throw new ApiError(502, 'model_revision_mismatch', '설정된 모델과 실행 중인 모델의 버전이 다릅니다.');
+  const target = actionTarget(config);
+  if (raw.model !== target.model || raw.revision !== target.revision) throw new ApiError(502, 'model_revision_mismatch', '설정된 모델과 실행 중인 모델의 버전이 다릅니다.');
   const expected = optionsFor(position.side);
   const names = raw.options.map(o => o.name);
   if (names.length !== expected.length || new Set(names).size !== names.length || !names.every(n => expected.includes(n))) throw new ApiError(502, 'invalid_model_output', '모델 선택지가 포지션 상태와 일치하지 않습니다.');
@@ -57,12 +58,12 @@ export function validateActionResponse(raw: ActionResponse, position: PaperPosit
 }
 
 export function decisionKey(config: Config, symbol: string, cutoff: number) {
-  return createHash('sha256').update(JSON.stringify({ task: 'ACTION_V1', model: config.modelId, revision: config.modelRevision, symbol, cutoff })).digest('hex');
+  return createHash('sha256').update(JSON.stringify({ task: 'ACTION_V1', model: actionTarget(config).model, revision: actionTarget(config).revision, symbol, cutoff })).digest('hex');
 }
 
 export function createActionRunner(config: Config, store: Store, actor: Actor, now: () => number) {
   const inflight = new Map<string, Promise<ActionDecision>>();
-  const revision = config.modelRevision;
+  const revision = actionTarget(config).revision; // a new model/policy starts a fresh paper book
   const inventoryOf = (symbol: string): PaperInventory => store.getInventory(symbol, revision) ?? { position: flatPosition(), realizedPct: 0, feesPct: 0, trades: 0, updatedCutoff: null, markPrice: null };
 
   async function decide(market: Market): Promise<ActionDecision> {
@@ -99,7 +100,7 @@ export function createActionRunner(config: Config, store: Store, actor: Actor, n
     const decision: ActionDecision = {
       id, symbol: market.symbol, interval: 15, task: 'ACTION_V1', action: raw.action,
       summary: `${ACTION_LABELS[raw.action]} · 페이퍼 포지션 ${SIDE_LABELS[before.side]}${before.units ? ` ${before.units}단위` : ''} → ${SIDE_LABELS[after.side]}${after.units ? ` ${after.units}단위` : ''}. 기계적 결과 요약이며 모델이 생성한 매매 근거가 아닙니다.`,
-      model: config.modelId, revision: raw.revision, trainingStatus: 'action_v1',
+      model: raw.model, policy: raw.policy, revision: raw.revision, trainingStatus: 'action_v1',
       generatedAt: new Date(now()).toISOString(), marketAsOf: market.asOf, latencyMs: Math.round(performance.now() - started), cached: false,
       scores: Object.fromEntries(raw.options.map(o => [o.name, o.probability])), scoreType: 'model_relative_likelihood',
       options: raw.options, holdMargin: raw.holdMargin, inputTokens: raw.inputTokens,
