@@ -342,7 +342,8 @@
     "flat_mean_p_trade_before_actual_open": 0.2171,
     "flat_mean_p_trade_before_hold": 0.2152,
     "per_state_margin_best_val_flat_trade_rate": 0.0,
-    "note": "validation logits only; per-state margins cannot recover flat opens"
+    "note": "validation logits only; per-state margins cannot recover flat opens",
+    "baseline_flat_open_auc": 0.6477
   },
   "training": {
     "completed_steps": 835,
