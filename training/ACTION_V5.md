@@ -47,3 +47,17 @@ Reported, not gated:
 
 If the gate passes, V5 replaces V4 live (a new paper book), and the benchmark chart and the
 Hugging Face card are updated. If it fails, V4 stays live.
+
+## Amendment before 2024 was scored (critic finding)
+
+The 2023 search is dominated by long-only configs. 2023 buy-and-hold across the 4 coins was
++311 %, and the median net by allowed set was +240 for `open_long/add/close` against −22 for
+all actions. Raw net therefore rewards market beta. The 2024 selection is amended before any
+2024 number exists:
+
+- **Candidates:** the critic's four non-control configs, plus each family's #1.
+- **Controls, reported but not eligible:** 1-unit and 3-unit in-simulator buy-and-hold.
+- **Selection metric:** highest 2024 4-coin mean **daily Sharpe**, with the activity floor.
+  Net, drawdown and the control-relative excess are reported for every candidate.
+- The gate on confirmation is unchanged.
+- Added report item: V5 against the 1-unit hold control on confirmation, per symbol.
