@@ -125,7 +125,7 @@ export function createApp(config:Config,deps:{store?:Store;scorer?:Scorer;actor?
   app.get('/api/performance',limit('performance',60),async(_req,res)=>{res.setHeader('Cache-Control','no-store');res.json(await readPerformance());});
   app.get('/healthz',(_req,res)=>res.json({status:'ok',service:'jev-trading-gateway'}));
   app.get('/api/status',(_req,res)=>res.json({model:config.modelId,revision:config.modelRevision,trainingStatus:config.trainingStatus,
-    providerConfigured:scorer.configured,apiAuthRequired:true,inferenceMode:scorer.configured?'live':'unconfigured',
+    providerConfigured:(actionMode?actor:scorer).configured,apiAuthRequired:true,inferenceMode:(actionMode?actor:scorer).configured?'live':'unconfigured',
     scoreSemantics:'uncalibrated_model_relative_likelihood',executionEnabled:false,
     task:actionMode?'ACTION_V1':null,decisionIntervals:actionMode?[15]:[15,60,240],gaMeasurementId:config.gaMeasurementId,scheduledAnalysisEnabled:config.scheduledAnalysisEnabled}));
   app.get('/api/market',limit('market',60),async(req,res)=>{

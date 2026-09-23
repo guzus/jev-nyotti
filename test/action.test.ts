@@ -71,7 +71,7 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
     const row=paper.symbols.find((s:{symbol:string})=>s.symbol==='BTCUSD');
     assert.equal(row.position.units,3);assert.equal(row.lastAction.action,'add');assert.ok(row.unrealizedPct>0);
     const status=await (await fetch(base+'/api/status')).json();
-    assert.equal(status.task,'ACTION_V1');assert.deepEqual(status.decisionIntervals,[15]);
+    assert.equal(status.task,'ACTION_V1');assert.equal(status.providerConfigured,true);assert.deepEqual(status.decisionIntervals,[15]);
     assert.throws(()=>store.db.exec("DELETE FROM paper_actions"),/append-only/);
   }finally{await new Promise<void>((r,e)=>server.close(x=>x?e(x):r()));await scheduler.stop();store.close();rmSync(dir,{recursive:true,force:true});}
 });

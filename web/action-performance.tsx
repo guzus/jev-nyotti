@@ -20,7 +20,7 @@ export function ActionPerformance({ data }: { data: ActionReplayPayload }) {
       <div><span>평균 손익 · 수수료 후</span><strong>{pct(r.pnlPct)}</strong></div>
       <div><span>최대 낙폭 · %p</span><strong>{r.maxDrawdownPts.toFixed(2)}</strong></div>
       <div><span>1단위 매수 후 보유</span><strong>{pct(r.buyHoldPct)}</strong></div>
-      <div><span>체결 · 평균 수수료</span><strong>{trades.toLocaleString()}회 · {r.feesPct.toFixed(2)}%</strong></div>
+      <div><span>체결 · 종목 평균 누적 수수료</span><strong>{trades.toLocaleString()}회 · {r.feesPct.toFixed(2)}%</strong></div>
     </div>
     <div className="performance-chart" role="img" aria-label="ACTION_V1 페이퍼 손익 및 매수 후 보유 곡선"><ResponsiveContainer width="100%" height="100%"><LineChart data={r.curve}><CartesianGrid vertical={false} stroke="#e8e2d8" /><XAxis dataKey="time" tickFormatter={(v) => String(v).slice(5, 10)} minTickGap={65} /><YAxis tickFormatter={(v) => `${Number(v).toFixed(1)}%`} width={60} /><Tooltip formatter={(v) => pct(Number(v))} labelFormatter={(v) => String(v).slice(0, 16).replace('T', ' ')} /><Line name="jev뇨띠" dataKey="pnlPct" stroke="#a95546" dot={false} isAnimationActive={false} /><Line name="매수 후 보유" dataKey="buyHoldPct" stroke="#99958c" strokeDasharray="4 4" dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>
     <p className="performance-range">실선 jev뇨띠 · 점선 1단위 매수 후 보유 · UTC · {first.time.slice(0, 16).replace('T', ' ')} — {last.time.slice(0, 16).replace('T', ' ')} · <span title={data.source}>{data.source}</span> · <span title={data.revision}>{data.revision.split('@').at(-1)?.slice(0, 7)}</span> · 관망 마진 {data.holdMargin}</p>
