@@ -15,8 +15,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pnl_lab  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-MODEL = ROOT / '.runtime' / 'numeric-policy-v4.json'
-SHA = '9101f3f5d92418f0de055962354c729c47c05c3b864ea9288bbccfc666992392'
+import os
+MODEL = Path(os.environ.get('LAB_MODEL', ROOT / '.runtime' / 'numeric-policy-v4.json'))
+SHA = os.environ.get('LAB_SHA', '9101f3f5d92418f0de055962354c729c47c05c3b864ea9288bbccfc666992392')
 TUNE = ROOT / '.runtime' / 'lab-2023'
 SYMBOLS = ['BTCUSD', 'ETHUSD', 'SOLUSD', 'XRPUSD']
 
@@ -32,7 +33,7 @@ def main() -> None:
     out = ROOT / 'benchmarks' / 'runs' / f'{args.family}.jsonl'
     for rules in json.loads(args.configs.read_text()):
         result = pnl_lab.evaluate(model, rules, TUNE, SYMBOLS, args.fill, cache)
-        row = dict(family=args.family, rules=rules, window=result['window'], fill=args.fill,
+        row = dict(family=args.family, model_sha=SHA, rules=rules, window=result['window'], fill=args.fill,
                    mean={k: round(v, 4) for k, v in result['mean'].items()},
                    per_symbol={k: {q: round(v[q], 3) for q in ('net_return_pct', 'fees_pct', 'trades', 'max_drawdown_pct')}
                                for k, v in result['per_symbol'].items()})
