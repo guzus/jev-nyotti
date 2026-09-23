@@ -48,3 +48,31 @@ finding goes to the user; there will be no V3 without their decision.
 
 One H100 dispatch with the same caps as V1: at most $2.99 conservative (worker cap raised to 2,000 s), from the remaining $5.27
 of the additional $10 approved.
+
+## Measured outcome — 2026-09-23: gate FAILED, not promoted. Paid attempts stopped.
+
+Run `action-6e4bc206cdb049499f3d345b25cfdb91` (GPU-only estimate $2.03; reload bit-identical).
+[Aggregate results](ACTION_V2_RESULTS.json). Training now worked: 835 steps, with train loss
+falling from 1.34 to 0.87, below the 1.04-nat class-prior entropy.
+
+| Criterion | LoRA | Threshold | |
+|---|---:|---:|---|
+| Trade-vs-hold F1 (May test; margin 1.65 from April) | 0.348 | > 0.298 | pass |
+| Predicted / teacher trade rate | 1.93× | 0.5–2× | pass |
+| Executed-action macro-F1 | 0.040 | > 0.109 | **fail** |
+| Fresh closed loop (Binance BTC 15m, 2026-08-23 → 09-22) | 0 opens | ≥ 5 / ≥ 5, 5–95 % | **fail** |
+
+What the model learned: when in position, trade means `close`; when flat, almost never open.
+In the confirmatory window it therefore **stayed flat**, which is the original "관망만" symptom.
+A post-hoc check on **validation logits only** shows why:
+
+- The flat-state probability of any open is 0.217 before actual opens and 0.215 before holds
+  (AUC 0.54).
+- The model cannot tell when this trader enters from these 15m candle features. Per-state
+  margins cannot fix this; forcing more opens would only add near-random entries.
+
+The V2 numeric baseline is not absorbed on the fresh window: 23 opens, 22 closes, 34 % time in
+position. Its entries are weak too: test trade F1 0.30, and −14 % fee-inclusive paper return
+over the 30 days. The pipeline (dataset, stateful `/action`, stateful replay, paper server mode)
+is shipped but not activated. Production keeps the existing model. Per this pre-registration,
+there is no V3 without the user's decision.

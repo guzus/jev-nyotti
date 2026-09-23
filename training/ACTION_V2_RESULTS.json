@@ -1,0 +1,372 @@
+{
+  "task": "ACTION_V1 interface, prompt revision 2 (ACTION_V2.md)",
+  "run_id": "action-6e4bc206cdb049499f3d345b25cfdb91",
+  "dataset_id": "0c4a34d52e00b988",
+  "adapter_sha256": "9f08769a4c552fc4eafdc8302787e51b8b80547f450e2377385e94469c71cffe",
+  "promotion": "rejected_gate_failed",
+  "gate": {
+    "passed": false,
+    "criteria": {
+      "trade_detection": {
+        "value": 0.34824281150159747,
+        "threshold": {
+          "greater_than": 0.298050139275766,
+          "always_hold": 0.0,
+          "baseline": 0.298050139275766
+        },
+        "passed": true
+      },
+      "trade_rate_sanity": {
+        "value": 1.925233644859813,
+        "threshold": {
+          "min": 0.5,
+          "max": 2.0
+        },
+        "passed": true
+      },
+      "action_quality": {
+        "value": 0.04,
+        "threshold": {
+          "greater_than": 0.10918918291954463
+        },
+        "passed": false
+      },
+      "no_absorbing_state": {
+        "value": {
+          "opens": 0,
+          "closes": 0,
+          "time_in_position_fraction": 0.0
+        },
+        "threshold": {
+          "min_opens": 5,
+          "min_closes": 5,
+          "time_in_position": [
+            0.05,
+            0.95
+          ]
+        },
+        "passed": false
+      }
+    },
+    "baseline_results_model": "logistic_regression_per_state_family"
+  },
+  "margin": 1.65,
+  "lora_test": {
+    "n": 2880,
+    "teacher_trade_rate": 0.07430555555555556,
+    "predicted_trade_rate": 0.14305555555555555,
+    "trade_precision": 0.2645631067961165,
+    "trade_recall": 0.5093457943925234,
+    "trade_f1": 0.34824281150159747,
+    "action_macro_f1": 0.04,
+    "per_class": {
+      "open_long": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 53
+      },
+      "open_short": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 44
+      },
+      "add": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 35
+      },
+      "reduce": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 33
+      },
+      "close": {
+        "precision": 0.11192214111922141,
+        "recall": 0.9387755102040817,
+        "f1": 0.2,
+        "support": 49
+      }
+    },
+    "confusion": {
+      "labels": [
+        "hold",
+        "open_long",
+        "open_short",
+        "add",
+        "reduce",
+        "close"
+      ],
+      "matrix": [
+        [
+          2363,
+          0,
+          1,
+          0,
+          0,
+          302
+        ],
+        [
+          53,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          44,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          34
+        ],
+        [
+          4,
+          0,
+          0,
+          0,
+          0,
+          29
+        ],
+        [
+          3,
+          0,
+          0,
+          0,
+          0,
+          46
+        ]
+      ],
+      "rows": "teacher",
+      "columns": "predicted"
+    },
+    "per_side": {
+      "flat": {
+        "n": 2414,
+        "teacher_trade_rate": 0.04018227009113504,
+        "predicted_trade_rate": 0.00041425020712510354,
+        "trade_precision": 0.0,
+        "trade_recall": 0.0,
+        "trade_f1": 0.0,
+        "accuracy": 0.9594034797017399
+      },
+      "long": {
+        "n": 440,
+        "teacher_trade_rate": 0.20681818181818182,
+        "predicted_trade_rate": 0.8795454545454545,
+        "trade_precision": 0.21963824289405684,
+        "trade_recall": 0.9340659340659341,
+        "trade_f1": 0.35564853556485354,
+        "accuracy": 0.17727272727272728
+      },
+      "short": {
+        "n": 26,
+        "teacher_trade_rate": 1.0,
+        "predicted_trade_rate": 0.9230769230769231,
+        "trade_precision": 1.0,
+        "trade_recall": 0.9230769230769231,
+        "trade_f1": 0.9600000000000001,
+        "accuracy": 0.5769230769230769
+      }
+    }
+  },
+  "lora_validation": {
+    "n": 2784,
+    "teacher_trade_rate": 0.17959770114942528,
+    "predicted_trade_rate": 0.2636494252873563,
+    "trade_precision": 0.3814713896457766,
+    "trade_recall": 0.56,
+    "trade_f1": 0.45380875202593196,
+    "action_macro_f1": 0.054292343387471,
+    "per_class": {
+      "open_long": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 97
+      },
+      "open_short": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 99
+      },
+      "add": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 101
+      },
+      "reduce": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 75
+      },
+      "close": {
+        "precision": 0.15940054495912806,
+        "recall": 0.9140625,
+        "f1": 0.271461716937355,
+        "support": 128
+      }
+    },
+    "confusion": {
+      "labels": [
+        "hold",
+        "open_long",
+        "open_short",
+        "add",
+        "reduce",
+        "close"
+      ],
+      "matrix": [
+        [
+          1830,
+          0,
+          0,
+          0,
+          0,
+          454
+        ],
+        [
+          97,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          99,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          6,
+          0,
+          0,
+          0,
+          0,
+          95
+        ],
+        [
+          7,
+          0,
+          0,
+          0,
+          0,
+          68
+        ],
+        [
+          11,
+          0,
+          0,
+          0,
+          0,
+          117
+        ]
+      ],
+      "rows": "teacher",
+      "columns": "predicted"
+    },
+    "per_side": {
+      "flat": {
+        "n": 1952,
+        "teacher_trade_rate": 0.10040983606557377,
+        "predicted_trade_rate": 0.0,
+        "trade_precision": 0.0,
+        "trade_recall": 0.0,
+        "trade_f1": 0.0,
+        "accuracy": 0.8995901639344263
+      },
+      "long": {
+        "n": 333,
+        "teacher_trade_rate": 0.33933933933933935,
+        "predicted_trade_rate": 0.8798798798798799,
+        "trade_precision": 0.3515358361774744,
+        "trade_recall": 0.911504424778761,
+        "trade_f1": 0.5073891625615764,
+        "accuracy": 0.2132132132132132
+      },
+      "short": {
+        "n": 499,
+        "teacher_trade_rate": 0.38276553106212424,
+        "predicted_trade_rate": 0.8837675350701403,
+        "trade_precision": 0.4013605442176871,
+        "trade_recall": 0.9267015706806283,
+        "trade_f1": 0.560126582278481,
+        "accuracy": 0.24048096192384769
+      }
+    }
+  },
+  "fresh_rollout_binance_btc_2026_08_23_to_09_22": {
+    "status": "completed",
+    "margin": 1.65,
+    "n_decisions": 2880,
+    "actions": {
+      "hold": 2880,
+      "open_long": 0,
+      "open_short": 0,
+      "add": 0,
+      "reduce": 0,
+      "close": 0
+    },
+    "opens": 0,
+    "closes": 0,
+    "time_in_position_fraction": 0.0,
+    "net_return_pct": 0.0,
+    "realized_return_pct": 0.0,
+    "fees_pct": 0.0,
+    "max_drawdown_pct": 0.0,
+    "open_at_end": false,
+    "accounting": "unit notional; realized unit returns (position_view convention) - 7.5 bps x units traded; open position marked to the close at end without a closing fee"
+  },
+  "post_hoc_validation_diagnostic": {
+    "flat_open_auc": 0.5405,
+    "flat_mean_p_trade_before_actual_open": 0.2171,
+    "flat_mean_p_trade_before_hold": 0.2152,
+    "per_state_margin_best_val_flat_trade_rate": 0.0,
+    "note": "validation logits only; per-state margins cannot recover flat opens"
+  },
+  "training": {
+    "completed_steps": 835,
+    "training_seconds": 774.193309801,
+    "first_10_mean_loss": 1.3370089285075664,
+    "last_10_mean_loss": 0.8697356671094895,
+    "train_mix_class_prior_entropy_nats": 1.0427
+  },
+  "timings": {
+    "setup": 25.1,
+    "load_model": 13.79,
+    "encode": 40.3,
+    "base_scoring": 75.95,
+    "training": 774.36,
+    "export": 2.32,
+    "lora_scoring": 300.0,
+    "rollout": 318.31,
+    "gate": 0.01,
+    "reload": 15.01
+  },
+  "gpu_cost_estimate_usd": 2.0346918210788,
+  "reload": {
+    "status": "passed",
+    "max_logit_difference": 0.0,
+    "decisions_identical": true
+  }
+}
