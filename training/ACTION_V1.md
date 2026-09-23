@@ -67,3 +67,32 @@ Only three months, one market regime and ~475 training actions. The data holds e
 fills only, not intentions, cancels, news or the order book. Matching the teacher's actions
 is not the same as matching the teacher's profitability. The source attribution is
 user-supplied and not independently verified.
+
+## Measured outcome — 2026-09-23: gate FAILED, not promoted
+
+Run `action-7d2a22f82b0a4f8f91eead66c3132101` (one H100 dispatch; GPU-only estimate $1.78; adapter
+export/reload bit-identical). [Aggregate results](ACTION_V1_RESULTS.json). Per the review, the numeric
+baseline was upgraded to all 24 shown candles before any model result was seen. The gate uses the
+**stricter** of the 4-candle and 24-candle baselines on each criterion.
+
+| Criterion (test, May 2018; margin −0.15 frozen from April) | LoRA | Threshold | |
+|---|---:|---:|---|
+| Trade-vs-hold F1 | 0.521 | > 0.449 | pass |
+| Predicted / teacher trade rate | 0.92× | 0.5–2× | pass |
+| Executed-action macro-F1 | 0.133 | > 0.228 | **fail** |
+| Closed-loop May rollout from flat | 1 open, 0 closes, 99.9 % in position | ≥ 5 / ≥ 5, 5–95 % | **fail** |
+
+Diagnosis:
+
+- **Undertrained.** Only 377 steps ran: base-model scoring used 358 s before training. The final
+  train loss of 1.09 is above the 1.04-nat class-prior entropy of the training mix. The model
+  never predicts `open_long`, `add` or `reduce`, and in-position actions collapse to `close`.
+- **Absorbing state again, now in-position.** Both baselines are absorbed too: the 4-candle one
+  stays in position and the 24-candle one stays flat. Teacher-forced timing skill does not
+  survive closed loop. The prime suspect is the self-referential time state
+  (`minutes_since_last_execution`, `position_age_minutes`). Under teacher forcing it marks the
+  trader's own bursts; in closed loop the model's quiet stretch feeds itself.
+- The rollout's +21 % paper return is one short held through a falling May. It is not evidence
+  of skill.
+
+May 2018 has now been viewed. Any successor must pre-register a fresh confirmatory period.
