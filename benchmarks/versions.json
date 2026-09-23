@@ -19,5 +19,10 @@
   "version": "V5",
   "benchmark_net_pct": -126.3,
   "note": "gate ✗"
+ },
+ {
+  "version": "V6",
+  "benchmark_net_pct": -179.4,
+  "note": "gate ✗ (rate 2.29×)"
  }
 ]

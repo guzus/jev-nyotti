@@ -63,3 +63,12 @@ Findings:
   It is still negative.
 - The rate-matched margins drifted. The trader's activity changed between 2020 H2 and 2021, so a
   static margin over-trades. 2021 has now been viewed, and no unseen teacher period remains.
+
+Pre-registered PnL report (4-coin mean net, fee-inclusive, artifact sha `c639c6c5…`; decisions
+match the gate run exactly):
+
+| Window | V6 | Fees | Buy & hold |
+|---|---:|---:|---:|
+| 2023 | −59.5 % | 104.7 % | +311 % |
+| 2024 | −141.5 % | 132.3 % | +114 % |
+| 2025-01 → 2026-06 leaderboard | −179.4 % | 162.5 % | −48.9 % |

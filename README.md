@@ -74,6 +74,7 @@ Each version is pre-registered with its gate committed before scoring (`training
 | V3 | logistic regression, Mar+Apr 2018 | ✗ over-trades 4.1× | −964 % |
 | **V4 (live)** | V3 plus per-state rate-matched margins | ✓ imitation gate | −527 % |
 | V5 | V4 plus cost-aware rules chosen on 2023/2024 | ✗ long beta, 98 % time in position | −126 % |
+| V6 | gradient boosting on full 2018–2021 history (17× data) | ✗ over-trades 2.29×; imitation F1 +58 % over V4 | −179 % |
 | 1-unit buy & hold | control | — | −49 % |
 
 "Better imitation" and "profitable" are different targets. No version has beaten buy-and-hold
