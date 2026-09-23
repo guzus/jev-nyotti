@@ -25,7 +25,8 @@ ROW_FIELDS = {'job', 'target_index', 'target_action', 'cutoff', 'cutoff_epoch', 
 MAX_LENGTH = MAX_INPUT_TOKENS  # every trained/scored row must also be servable
 MAX_FILE_BYTES = 100 * 1024 * 1024
 LORA_RANK = 16
-MAX_STEPS = 600  # ~2 epochs of 1,220 train rows at 4 sequences/step
+MAX_STEPS = 915  # ACTION_V2: ~3 epochs of 1,220 train rows at 4 sequences/step
+LEARNING_RATE = 2e-4  # ACTION_V2: V1 at 1e-4 ended above the class-prior entropy
 BATCH_SIZE, GRAD_ACCUM = 2, 2
 TRAIN_WALL_SECONDS = 900  # hard cap on the optimizer loop
 MIN_STEPS = 10
@@ -38,7 +39,7 @@ MIN_STEPS = 10
 # the 1,800 s worker. Training is shortened automatically if measured scoring is slower.
 RATE_USD_PER_SECOND = 0.0013
 OVERHEAD_SECONDS = 300
-MAX_SECONDS = 1800
+MAX_SECONDS = 2000  # ACTION_V2: training gets the skipped base-scoring time; 0.0013*(2000+300)=$2.99
 BUDGET_USD = 3.0
 
 
@@ -145,9 +146,7 @@ def _load_rollout(directory: Path, rows_by_split: dict) -> dict:
     markets = {r['job']['state']['market'] for rows in rows_by_split.values() for r in rows}
     if markets != {rollout['market']}:
         raise ValueError('rollout market differs from dataset market')
-    test = rows_by_split['test']
-    if not (start <= test[0]['cutoff_epoch'] and test[-1]['cutoff_epoch'] < end):
-        raise ValueError('rollout window must cover the test split')
+    # ACTION_V2: criterion 4 uses a fresh confirmatory window, so it need not overlap test.
     return rollout
 
 
@@ -355,7 +354,7 @@ def train_loop(model, trainable, encoded_train, pad_id, cap_seconds, emit, persi
     import statistics
     import time
     import torch
-    optimizer = torch.optim.AdamW([p for _, p in trainable], lr=1e-4, weight_decay=.01)
+    optimizer = torch.optim.AdamW([p for _, p in trainable], lr=LEARNING_RATE, weight_decay=.01)
     losses, durations = [], []
     indices = list(range(len(encoded_train)))
     random.shuffle(indices)
@@ -657,13 +656,20 @@ def main(run_id: str, dataset_id: str, deadline_epoch: float) -> None:
                 report['failure_reason'] = 'projected scoring+rollout+reload leaves no training time'
                 raise Infeasible('insufficient time budget')
 
-        base = score_splits(model, prompts, pad_id, emit, check=feasibility)
-        report['base'] = {'batched_parity': base['parity'], 'scoring_seconds': base['seconds'],
-                          **tuned_metrics(rows, base['logits'])}
-        write_private_scores(out / 'scores.jsonl', rows, base['logits'], None)
+        # ACTION_V2: no base-model scoring pass; only a warm parity/timing probe to plan training.
+        from unsloth import FastVisionModel as _FVM
+        _FVM.for_inference(model)
+        parity = batched_parity(model, prompts['validation'], pad_id)
+        emit('batched_parity', **parity)
+        per_row = parity['batched_seconds_per_row'] if parity['passed'] else parity['sequential_seconds_per_row']
+        projected = per_row * sum(len(prompts[s]) for s in ('validation', 'test'))
+        feasibility(parity, projected)
+        base = {'logits': {s: [None] * len(prompts[s]) for s in ('validation', 'test')}, 'parity': parity}
+        report['base'] = {'skipped': 'ACTION_V2 pre-registration: base scoring time reassigned to training',
+                          'batched_parity': parity, 'projected_scoring_seconds': projected}
         phase('training')
-        plan = plan_training(deadline_epoch - time.time(), base['seconds'], rollout_rows,
-                             base['parity']['sequential_seconds_per_row'], base_pending=False)
+        plan = plan_training(deadline_epoch - time.time(), projected, rollout_rows,
+                             parity['sequential_seconds_per_row'], base_pending=False)
         report.update(training_plan=plan)
         persist()
         if not plan['feasible']:

@@ -33,7 +33,7 @@ app = modal.App(APP_NAME)
 inputs = modal.Volume.from_name('jev-qwen-action-v1-inputs', create_if_missing=True)
 artifacts = modal.Volume.from_name('jev-qwen-action-v1-artifacts', create_if_missing=True)
 STARTUP_SECONDS = 120
-# Worker timeout 1800 s + 300 s startup/teardown at a conservative $0.0013/s = $2.73 <= $3.00.
+# Worker timeout 2000 s + 300 s startup/teardown at a conservative $0.0013/s = $2.99 <= $3.00.
 assert RATE_USD_PER_SECOND == 0.0013 and OVERHEAD_SECONDS == 300 and BUDGET_USD == 3.0
 assert RATE_USD_PER_SECOND * (MAX_SECONDS + OVERHEAD_SECONDS) <= BUDGET_USD
 

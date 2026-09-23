@@ -53,7 +53,7 @@ def test_every_prompt_is_action_task_build_job_on_closed_candles_only():
     first = fake.jobs[0]
     lookback = [index[t] for t in range(START - 96 * STEP, START, STEP)]
     assert first == action_task.build_job(candles=lookback, cutoff=START, position=action_task.flat_position(),
-                                          market="BTCUSDT on binance-spot-15m")
+                                          market="BTC/USD")
     assert first["state"]["data_cutoff"] == iso(START)
     # Execution price is the close of the candle ending at the cutoff, never the forward candle.
     record = state["records"][0]

@@ -21,7 +21,8 @@ export function actionBody(market: Market, position: PaperPosition): ActionReque
   const cutoff = actionCutoff(market);
   return {
     // action_task.iso format: second precision, no milliseconds.
-    market: `Kraken ${market.symbol} spot`, cutoff: new Date(cutoff * 1000).toISOString().replace('.000Z', 'Z'),
+    market: `${market.symbol.replace(/USD$/, '')}/USD`, // action_task.market_label: identical to training
+    cutoff: new Date(cutoff * 1000).toISOString().replace('.000Z', 'Z'),
     candles: market.candles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume })),
     position: { side: position.side, entry_price: position.entry_price, opened_at: position.opened_at, last_trade_at: position.last_trade_at },
   };

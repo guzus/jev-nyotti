@@ -305,7 +305,7 @@ class OrchestrationTests(unittest.TestCase):
 class BudgetTests(unittest.TestCase):
     def test_planned_cost_within_cap_including_overhead(self):
         self.assertEqual(ra.OVERHEAD_SECONDS, 300)
-        self.assertAlmostEqual(ra.planned_cost_usd(), 0.0013 * (1800 + 300))
+        self.assertAlmostEqual(ra.planned_cost_usd(), 0.0013 * (2000 + 300))
         self.assertLessEqual(ra.planned_cost_usd(), ra.BUDGET_USD)
         self.assertGreater(ra.planned_cost_usd(2100), ra.BUDGET_USD)  # longer worker would breach $3
 

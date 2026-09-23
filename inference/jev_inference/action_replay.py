@@ -95,7 +95,7 @@ class Plan:
             symbol = s.get("symbol")
             if not isinstance(symbol, str) or not SYMBOL.fullmatch(symbol) or symbol in self.indexes:
                 raise ValueError("invalid or duplicate symbol")
-            market = s.get("market") or f"{symbol} on {self.source}"
+            market = s.get("market") or action_task.market_label(re.sub(r"USDT?$", "", symbol))
             if not isinstance(market, str) or not market.strip() or len(market) > 120:
                 raise ValueError("market label must be 1..120 chars")
             index = index_candles(s["candles"])

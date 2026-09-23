@@ -12,7 +12,9 @@ from __future__ import annotations
 import math
 from datetime import datetime, timezone
 
-TASK = 'ACTION_V1'
+TASK = 'ACTION_V1'  # interface/protocol family (API, replay, paper rule)
+# Prompt revision 2 (ACTION_V2.md): no self-referential time fields; neutral '<ASSET>/USD' market.
+PROMPT_REVISION = 2
 INTERVAL_MINUTES = 15
 STEP = INTERVAL_MINUTES * 60
 LOOKBACK = 96
@@ -112,19 +114,29 @@ def market_view(candles: list[dict]) -> dict:
 
 
 def position_view(position: dict, cutoff: int, mark: float) -> dict:
-    """position: {side, entry_price|None, opened_at|None, last_trade_at|None} (UTC seconds)."""
+    """position: {side, entry_price|None, opened_at|None, last_trade_at|None} (UTC seconds).
+
+    Revision 2 shows only side and unrealized return. Time since the holder's own last execution
+    and position age are deliberately omitted: under teacher forcing they encode the trader's own
+    bursts, and in closed loop the model's quiet stretch fed back into itself (ACTION_V1 failure).
+    """
     side = position['side']
     options_for(side)
-    last = position.get('last_trade_at')
-    view = dict(side=side,
-                minutes_since_last_execution=None if last is None else r((cutoff - last) / 60, 1))
+    view = dict(side=side)
     if side != 'flat':
-        entry, opened = position['entry_price'], position['opened_at']
-        if not entry or entry <= 0 or opened is None:
-            raise ValueError('open position requires entry_price and opened_at')
+        entry = position['entry_price']
+        if not entry or entry <= 0:
+            raise ValueError('open position requires entry_price')
         signed = mark / entry - 1 if side == 'long' else entry / mark - 1
-        view.update(unrealized_return_pct=r(100 * signed), position_age_minutes=r((cutoff - opened) / 60, 1))
+        view.update(unrealized_return_pct=r(100 * signed))
     return view
+
+
+def market_label(asset: str) -> str:
+    """Neutral market string used identically in training, replay and live serving."""
+    if not asset.isalnum() or not asset.isupper() or len(asset) > 10:
+        raise ValueError('asset must be an uppercase ticker')
+    return f'{asset}/USD'
 
 
 def build_job(*, candles: list[dict], cutoff: int, position: dict, market: str, order: list[str] | None = None) -> dict:
@@ -134,7 +146,7 @@ def build_job(*, candles: list[dict], cutoff: int, position: dict, market: str, 
     if sorted(names) != sorted(options_for(position['side'])):
         raise ValueError('options do not match position side')
     view = market_view(candles)
-    state = dict(task=TASK, market=market, interval_minutes=INTERVAL_MINUTES, data_cutoff=iso(cutoff),
+    state = dict(task=TASK, prompt_revision=PROMPT_REVISION, market=market, interval_minutes=INTERVAL_MINUTES, data_cutoff=iso(cutoff),
                  position=position_view(position, cutoff, candles[-1]['close']),
                  features=view['features'], recent_closed_candles=view['recent'],
                  missing=['equity', 'leverage', 'order_book', 'news', 'future_prices'])

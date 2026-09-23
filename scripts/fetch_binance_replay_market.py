@@ -88,7 +88,7 @@ def action_replay_input(start,end,results,retrieved_at):
         candles=[row for row in ordered if first<=row['time']<end]
         if [row['time'] for row in candles]!=list(range(first,end,900)):
             raise ValueError(f'{symbol} is not contiguous over {iso(first)}..{iso(end)}; refusing to write replay input')
-        series.append({'symbol':symbol,'market':f"Binance Spot {result['marketPair']}",'candles':candles})
+        series.append({'symbol':symbol,'market':f"{symbol.removesuffix('USD')}/USD",'candles':candles})
         provenance['symbols'][symbol]={k:result[k] for k in ('marketPair','rows','sha256','sources','downloadErrors')}
     return {'source':'Binance Spot 15m','from':iso(start),'to':iso(end),'series':series,'provenance':provenance}
 

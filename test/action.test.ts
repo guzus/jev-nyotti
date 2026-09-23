@@ -26,7 +26,7 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
   const actor:Actor={configured:true,act:async body=>{
     bodies.push(body);
     const names=optionsFor(body.position.side);
-    const action=body.market.startsWith('Kraken BTCUSD')?plan[body.position.side]:'hold';
+    const action=body.market==='BTC/USD'?plan[body.position.side]:'hold';
     return {model:'Qwen/Qwen3.5-4B',revision,task:'ACTION_V1',action,options:names.map(name=>({name,probability:1/names.length})),holdMargin:0.5,inputTokens:900,elapsedMs:3};
   }};
   const config={...readConfig(),dataDir:dir,apiKey:key,trainingStatus:'action_v1' as const,modelRevision:revision,scheduledAnalysisEnabled:true};
@@ -39,7 +39,7 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
   try {
     await scheduler.tick();
     assert.equal(bodies.length,10,'one decision per scheduled symbol on 15m only');
-    const btc=bodies.find(b=>b.market==='Kraken BTCUSD spot')!;
+    const btc=bodies.find(b=>b.market==='BTC/USD')!;
     assert.equal(btc.candles.length,96);assert.equal(btc.cutoff,'2026-09-23T00:00:00Z');
     assert.equal((btc.candles.at(-1)!.time+900)*1000,Date.parse(btc.cutoff));
     assert.deepEqual(btc.position,{side:'flat',entry_price:null,opened_at:null,last_trade_at:null});
@@ -59,7 +59,7 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
     const pending=await (await fetch(base+'/api/market?symbol=BTCUSD&interval=15')).json();
     assert.ok(pending.cache.error);assert.equal(Date.parse(pending.cache.nextRefreshAt),clock+90000);
     lag=0;clock+=90000;await scheduler.tick();
-    const second=bodies.filter(b=>b.market==='Kraken BTCUSD spot').at(-1)!;
+    const second=bodies.filter(b=>b.market==='BTC/USD').at(-1)!;
     assert.equal(second.position.side,'long');assert.equal(second.position.entry_price,btc.candles.at(-1)!.close);
     assert.equal(second.position.last_trade_at,Date.parse(btc.cutoff)/1000);
 
@@ -68,7 +68,7 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
     assert.equal(decision.missedCutoffs,2);assert.equal(decision.actionLog.filter((r:{kind:string})=>r.kind==='gap').length,1,'a delayed candle is retried, not logged as a gap');assert.equal(decision.paper.units,3);
     assert.deepEqual(decision.actionLog.slice(0,2).map((r:{kind:string})=>r.kind),['action','gap'],'newest first: the gap precedes the resumed action');
     assert.equal(decision.actionLog.filter((r:{kind:string})=>r.kind==='action').length,3);
-    assert.equal(bodies.filter(b=>b.market==='Kraken BTCUSD spot').length,3,'missed cutoffs are not backfilled');
+    assert.equal(bodies.filter(b=>b.market==='BTC/USD').length,3,'missed cutoffs are not backfilled');
 
     const paper=await (await fetch(base+'/api/paper')).json();
     assert.equal(paper.task,'ACTION_V1');assert.equal(paper.symbols.length,10);

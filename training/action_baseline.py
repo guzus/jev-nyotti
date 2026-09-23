@@ -26,15 +26,13 @@ OPTIONS = {'flat': ('hold', 'open_long', 'open_short'), 'position': ('hold', 'ad
 
 
 def vector(state: dict) -> list[float]:
-    f, p = state['features'], state['position']
-    since = p.get('minutes_since_last_execution')
+    f, p = state['features'], state['position']  # prompt revision 2: side + unrealized only
     x = [f[k] for k in ('return_1h_pct', 'return_4h_pct', 'return_24h_pct', 'rsi14', 'volatility_pct',
                         'from_24h_high_pct', 'from_24h_low_pct', 'last_volume_rel')]
     for c in state['recent_closed_candles']:
         x += [c['ret_pct'], c['high_pct'], c['low_pct'], c['vol_rel']]
-    x += [0.0 if since is None else math.log1p(since), 1.0 if since is None else 0.0]
     if p['side'] != 'flat':
-        x += [1.0 if p['side'] == 'long' else -1.0, p['unrealized_return_pct'], math.log1p(p['position_age_minutes'])]
+        x += [1.0 if p['side'] == 'long' else -1.0, p['unrealized_return_pct']]
     return x
 
 

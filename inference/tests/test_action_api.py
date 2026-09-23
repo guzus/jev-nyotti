@@ -103,8 +103,7 @@ def test_position_options_and_margin_subtracts_from_hold_only():
     # Probabilities stay the softmax of the raw (unshifted) logits.
     assert [o["probability"] for o in result["options"]] == pytest.approx(softmax([2.0, 1.5, 0.0, -1.0]))
     state = engine.jobs[0].state["position"]
-    assert state["side"] == "long" and state["position_age_minutes"] == 120.0
-    assert state["minutes_since_last_execution"] == 60.0
+    assert state["side"] == "long" and set(state) == {"side", "unrealized_return_pct"}  # prompt revision 2
     engine = FakeEngine(logits=[2.0, 1.5, 0.0, -1.0])
     with client_for(engine, action_hold_margin=0.5) as client:
         assert client.post("/action", headers=HEADERS, json=body(position=LONG)).json()["action"] == "hold"  # tie -> first max

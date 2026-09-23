@@ -34,7 +34,7 @@ STEP = at.STEP
 MINUTE = 60
 BUCKETS = STEP // MINUTE
 EPISODE_GAP_SECONDS = 60
-MARKET = 'BitMEX XBTUSD inverse perpetual'
+MARKET = at.market_label('BTC')  # neutral; identical in live serving and replay (ACTION_V2.md)
 SEED = 3407
 HOLDS_PER_ACTION = 2
 SPLITS = (('train', '2018-03-02T00:00:00Z', '2018-04-01T00:00:00Z'),
@@ -302,7 +302,7 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
             handle.write(json.dumps(row, separators=(',', ':'), allow_nan=False) + '\n')
 
 
-def build(source: Path, snapshot: Path, output: Path) -> dict:
+def build(source: Path, snapshot: Path, output: Path, fresh: Path | None = None) -> dict:
     if output.exists():
         raise ValueError(f'{output} already exists; refusing to overwrite')
     paths = sorted(source.glob('aoa-execution-*.csv'))
@@ -362,12 +362,26 @@ def build(source: Path, snapshot: Path, output: Path) -> dict:
                 'first_episode_continues_pre_cutoff_run': diagnostics[f'{name}:first_episode_continues_pre_cutoff_run'],
                 'natural': counts([{'target_action': w['label'], 'side': w['position']['side']} for w in natural]),
                 'written': counts(rows)}
-        r_start, r_end = epoch(ROLLOUT[0]), epoch(ROLLOUT[1])
-        roll = [c for c in candles if r_start - at.LOOKBACK * STEP <= c['time'] < r_end]
+        if fresh is None:
+            r_start, r_end = epoch(ROLLOUT[0]), epoch(ROLLOUT[1])
+            roll = [c for c in candles if r_start - at.LOOKBACK * STEP <= c['time'] < r_end]
+            roll_source = 'BitMEX XBTUSD 15m aggregated from the official 1m snapshot (May 2018)'
+        else:
+            # Confirmatory closed-loop window never viewed by any model (ACTION_V2.md): criterion 4
+            # needs only candles, not teacher labels.
+            src = json.loads(fresh.read_text())
+            (series,) = src['series']
+            if series['market'] != MARKET:
+                raise ValueError('fresh rollout market label differs from training market label')
+            r_start, r_end = epoch(src['from']), epoch(src['to'])
+            roll = [{k: c[k] for k in ('time', 'open', 'high', 'low', 'close', 'volume')} for c in series['candles']
+                    if r_start - at.LOOKBACK * STEP <= c['time'] < r_end]
+            roll_source = f"{src['source']} {series['symbol']} ({fresh.name}, sha256 {sha256(fresh)})"
         if len(roll) != (r_end - r_start) // STEP + at.LOOKBACK:
             raise ValueError('rollout candles incomplete')
         (tmp / 'rollout.json').write_text(json.dumps({'candles': roll, 'start': r_start, 'end': r_end, 'market': MARKET},
                                                      separators=(',', ':'), allow_nan=False) + '\n')
+        manifest['rollout_source'] = roll_source
         for name in ('train.jsonl', 'validation.jsonl', 'test.jsonl', 'rollout.json'):
             manifest['files'][name] = {'sha256': sha256(tmp / name), 'bytes': (tmp / name).stat().st_size}
         manifest['excluded_ambiguous_total'] = sum(s['excluded_ambiguous'] for s in manifest['splits'].values())
@@ -388,8 +402,9 @@ def main() -> None:
     parser.add_argument('--source', type=Path, default=DEFAULT_SOURCE)
     parser.add_argument('--snapshot', type=Path, default=DEFAULT_SNAPSHOT)
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument('--fresh-rollout', type=Path, help='action-replay-input.json with one BTCUSD series')
     args = parser.parse_args()
-    manifest = build(args.source, args.snapshot, args.output)
+    manifest = build(args.source, args.snapshot, args.output, args.fresh_rollout)
     print(json.dumps({k: manifest[k] for k in ('dataset_id', 'excluded_ambiguous_total', 'march_frozen_count_check')}
                      | {'splits': {k: {'written': v['written'], 'natural': v['natural']['by_action'],
                                        'excluded_ambiguous': v['excluded_ambiguous']} for k, v in manifest['splits'].items()}},
