@@ -1,50 +1,24 @@
 {
-  "stage": "paused_model_validation_failed",
-  "targetRange": [
-    "2025-12-26T08:00:00Z",
-    "2026-09-22T08:00:00Z"
+  "source": "Binance Spot USDT 15m (public archives)",
+  "range": [
+    "2026-08-22T00:00:00Z",
+    "2026-09-23T00:00:00Z"
   ],
-  "targetDecisions": 16200,
-  "publishedRange": [
-    "2026-09-22T00:00:00Z",
-    "2026-09-22T08:00:00Z"
-  ],
-  "publishedDecisions": 20,
-  "sourceSha256": "6db5b13f02ff06e0850bf8b59d4cb2b447ecf31cf02d9345f9bfba20afd9c6c9",
-  "modelAdapterRevision": "73867def94f8b062700ad3f8d63128b4e1c9b1d4",
-  "budgetCapUsd": 10,
-  "pilot": {
-    "completedDecisions": 20,
-    "completedCutoffs": 2,
-    "elapsedSeconds": 24.263050458,
-    "reservedBudgetUsd": 0.75,
-    "conservativeRateUsdSecond": 0.0013,
-    "identity": "e7782b0b45c4d812b0a028552c7463df07158946f94584159860e918b115a820"
-  },
-  "mainModalApp": "ap-3bKsndrZ8r6tQRH9GckdkC",
-  "inferenceMode": "sequential benchmark; main cross-symbol batches passed first-cutoff parity",
-  "notes": [
-    "Source Binance Spot USDT; current site live charts use Kraken USD",
-    "Current model predicts next-hour position; strategy holds for4hours",
-    "Initial flat; prior decisions carried forward; no real orders",
-    "No full five-year result yet",
-    "Main replay is paused; no completion ETA. Published 20-decision pilot remains unchanged."
-  ],
-  "pauseReason": "Persistence baseline not beaten; sampled replay predictions remained flat. GPU replay and automatic publication canceled for corrective diagnosis.",
-  "stoppedCheckpoint": {
-    "completedDecisions": 7100,
-    "completedCutoffs": 710,
-    "elapsedSeconds": 419.469033969,
-    "reservedBudgetUsd": 6.0,
-    "conservativeRateUsdSecond": 0.0013,
-    "identity": "7a16c89c3b8566cb6055036944762837fbd75cb80f6efadda63f65472e7747b4",
-    "batchGate": "passed"
-  },
-  "inspectedSnapshot": {
-    "decisions": 6590,
-    "actions": {
-      "flat": 6590
-    },
-    "positionChanges": 0
+  "policy": "numeric",
+  "model": "jev-numeric/logreg",
+  "artifact_sha256": "2e068dade97ca0760eec0c164c09cea5d76af921191e34646fd98c2d5f105292",
+  "hf": "guzus/jev-nyotti-action@f6390940b9a4e44d0511493faae0be601aa05c34",
+  "replay": "inference/action_replay_local.py (CPU, from flat per symbol)",
+  "symbols": {
+    "BTCUSD": "21b69d46a62878eeaf302693e60bddd9cc318eaba905c081abe46e56acbd7cbc",
+    "ETHUSD": "8843adf3cbd4327934de19c2ba9edb24b3aac1f662e12d3b8b06b80e73987f52",
+    "XRPUSD": "6b08c2dc0ba0f0a47cf573643cca924d61baebbf2e68bbd4da6fa9c8ec99f529",
+    "SOLUSD": "319dc09d0f6949318438ce55a85c90855292f248771bf75f5317b15833d28b57",
+    "DOGEUSD": "cb54265dcb831538c1630466f2b08e2971bdb3f2724c6d1163850fdd7f6ba0a9",
+    "BNBUSD": "4484d071dcbda093037ebf06e306b2570fa703475e525cffc5b7325dee45a938",
+    "SUIUSD": "46fda2ce540db7c26bc4c8b7fb8a226c42fe8e66a3c10636c0331dab6527ab43",
+    "NEARUSD": "63db53b8f45c3fa27c4491c7d2188eedbbfd95f5f9f9f9a42e0a58af12f1e885",
+    "PEPEUSD": "fa74aa08bd9314edafac641658d63753736253c6c0c6a6f3064672365bbc2560",
+    "ZECUSD": "4524fd346ef8f9361403d29f523facf4dd52f14ae2e7189a147f3ea1a56d3f66"
   }
 }
