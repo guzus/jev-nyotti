@@ -3,7 +3,8 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { simulatePortfolio } from './pnl.js';
+import { simulateActionReplay, simulatePortfolio } from './pnl.js';
+import { ALL_ACTIONS } from './paper.js';
 
 const timestamp = z.string().datetime({ offset: true });
 const side = z.enum(['long', 'short', 'flat']);
@@ -21,7 +22,32 @@ export const pnlImportSchema = z.object({
   })).min(1).max(100),
 }).strict();
 
+const candle = z.object({ time: z.number().int().positive(), open: z.number().positive(), high: z.number().positive(), low: z.number().positive(), close: z.number().positive(), volume: z.number().nonnegative() });
+const actionName = z.enum(ALL_ACTIONS);
+/** ACTION_V1 closed-loop replay (training/ACTION_V1.md): one decision per 15m cutoff, paper units, fees per unit. */
+export const actionImportSchema = z.object({
+  model: z.string().trim().min(1).max(300), revision: z.string().trim().min(1).max(500), task: z.literal('ACTION_V1'),
+  intervalMinutes: z.literal(15), holdMargin: z.number().finite(), from: timestamp, to: timestamp,
+  source: z.string().trim().min(1).max(300), generatedAt: timestamp,
+  series: z.array(z.object({
+    symbol: z.string().trim().min(1).max(40),
+    decisions: z.array(z.object({ marketAsOf: timestamp, action: actionName, sideAfter: side, unitsAfter: z.number().nonnegative().max(3), price: z.number().positive(),
+      probabilities: z.partialRecord(actionName, z.number().finite().min(0).max(1)) })).min(1),
+    candles: z.array(candle).min(1),
+  })).min(1).max(100),
+}).strict();
+
+export function makeActionReport(input: unknown) {
+  const parsed = actionImportSchema.parse(input);
+  const report = simulateActionReplay(parsed);
+  if (Date.parse(parsed.generatedAt) < Date.parse(parsed.to)) throw new Error('generatedAt precedes the final replay cutoff');
+  const history = parsed.series.flatMap(s => s.decisions.filter(d => d.action !== 'hold').map(d => ({ symbol: s.symbol, marketAsOf: d.marketAsOf, action: d.action, sideAfter: d.sideAfter, unitsAfter: d.unitsAfter, price: d.price })))
+    .sort((a, b) => Date.parse(b.marketAsOf) - Date.parse(a.marketAsOf) || a.symbol.localeCompare(b.symbol));
+  return { task: 'ACTION_V1' as const, history, status: 'ready' as const, model: parsed.model, revision: parsed.revision, holdMargin: parsed.holdMargin, generatedAt: parsed.generatedAt, source: parsed.source, report };
+}
+
 export function makePnlReport(input: unknown) {
+  if (typeof input === 'object' && input !== null && 'task' in input) return makeActionReport(input);
   const parsed = pnlImportSchema.parse(input);
   const report = simulatePortfolio(parsed);
   const latestCutoff = Math.max(...parsed.series.map(s => Date.parse(s.decisions.at(-1)!.marketAsOf)));

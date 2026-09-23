@@ -1,4 +1,8 @@
 import type { Candle } from './market.js';
+import {
+  ACTION_INTERVAL_MINUTES, ACTION_STEP_SECONDS, FEE_BPS_PER_UNIT, MAX_UNITS, flatPosition, optionsFor, stepPaper, unrealizedPct,
+  type ActionName, type PaperSide,
+} from './paper.js';
 
 export type PositionSide = 'long' | 'short' | 'flat';
 export type PnlDecision = { marketAsOf: string; action: PositionSide; previousAction?: PositionSide };
@@ -114,5 +118,69 @@ export function simulatePortfolio(input: PnlInput) {
       return { symbol: s.symbol, initialCapital: allocation, equity, pnl: equity - allocation, returnPct: (equity / allocation - 1) * 100, maxDrawdownPct: a.maxDrawdownPct, fees: a.fees, slippage: a.slippage, fills: a.fills, endingAction: a.side, buyHoldEquity: a.buyHoldCash + a.buyHoldQuantity * last.close };
     }),
     assumptions: { feeBps, slippageBps, intervalMinutes, inputIntervalMinutes: 60, predictionHorizonMinutes: 60, holdingPolicy: 'hold_target_until_next_decision', unavailableBeforeStart: 'cash', initialPosition: 'flat', allocation: 'equal_initial_sleeves', sizing: '1x_equity_on_side_change', execution: 'next_candle_open_at_input_cutoff', mark: intervalMinutes === 60 ? 'hourly_close' : 'four_hour_close', endingPosition: 'marked_to_market_not_liquidated', fundingIncluded: false, borrowCostsIncluded: false, liquidationModeled: false, dividendsIncluded: false, reconstruction: true },
+  };
+}
+
+export type ActionReplayDecision = { marketAsOf: string; action: ActionName; sideAfter: PaperSide; unitsAfter: number; price: number; probabilities: Partial<Record<ActionName, number>> };
+export type ActionReplayInput = { from: string; to: string; series: { symbol: string; decisions: ActionReplayDecision[]; candles: Candle[] }[] };
+export type ActionCurvePoint = { time: string; pnlPct: number; drawdownPts: number; buyHoldPct: number };
+
+/** ACTION_V1 closed-loop replay accounting (format of inference/REPLAY.md). Every 15m
+ * cutoff in [from, to) has one decision and one execution candle opening at that cutoff.
+ * The decision executes at `price`, the close of the candle ending at the cutoff (so
+ * price[i] must equal candles[i-1].close), through the same stepPaper rule the live server uses (1 unit, add +1 max 3, reduce halves,
+ * 7.5 bps per unit traded), then is marked at the execution candle close. PnL is percent of one unit notional; the portfolio line
+ * is the equal-weight mean of symbols. The imported sideAfter/unitsAfter chain must
+ * match the rule exactly, otherwise the import fails closed. */
+export function simulateActionReplay(input: ActionReplayInput) {
+  const from = Date.parse(input.from) / 1000, to = Date.parse(input.to) / 1000;
+  requireValid(Number.isFinite(from) && Number.isFinite(to) && from % ACTION_STEP_SECONDS === 0 && to % ACTION_STEP_SECONDS === 0 && to > from, 'range must be aligned 15m UTC boundaries');
+  requireValid(input.series.length > 0 && new Set(input.series.map(s => s.symbol)).size === input.series.length, 'symbols must be nonempty and unique');
+  const bars = (to - from) / ACTION_STEP_SECONDS;
+  const sleeves = input.series.map(s => {
+    requireValid(s.candles.length === bars && s.decisions.length === bars, `${s.symbol}: require one 15m candle and one decision per cutoff in range`);
+    let position = flatPosition(), realized = 0, fees = 0, trades = 0, opens = 0, closes = 0, exposed = 0, peak = 0, maxDrawdownPts = 0;
+    const first = s.decisions[0].price, points: { pnl: number; buyHold: number }[] = [];
+    s.candles.forEach((c, i) => {
+      const cutoff = c.time, d = s.decisions[i];
+      requireValid(c.time === from + i * ACTION_STEP_SECONDS, `${s.symbol}: candles must be contiguous 15m bars`);
+      requireValid(Object.values(c).every(Number.isFinite) && c.low > 0 && c.low <= Math.min(c.open, c.close) && c.high >= Math.max(c.open, c.close) && c.volume >= 0, `${s.symbol}: invalid OHLC candle`);
+      requireValid(Date.parse(d.marketAsOf) / 1000 === cutoff, `${s.symbol}: execution candle must open at its decision cutoff`);
+      requireValid(d.price > 0 && (i === 0 || Math.abs(d.price / s.candles[i - 1].close - 1) < 1e-9), `${s.symbol}: execution price must be the close of the candle ending at the cutoff`);
+      const allowed = optionsFor(position.side), probs = Object.entries(d.probabilities);
+      requireValid(allowed.includes(d.action) && probs.length === allowed.length && probs.every(([k, v]) => allowed.includes(k as ActionName) && Number.isFinite(v) && v >= 0) && Math.abs(probs.reduce((a, [, v]) => a + v, 0) - 1) < 1e-4, `${s.symbol}: action or probabilities do not match the carried state`);
+      const step = stepPaper(position, d.action, d.price, cutoff);
+      requireValid(step.after.side === d.sideAfter && Math.abs(step.after.units - d.unitsAfter) < 1e-12, `${s.symbol}: decision chain does not match the paper execution rule`);
+      position = step.after; realized += step.realizedPct; fees += step.feePct;
+      if (step.unitsTraded > 0) trades++;
+      if (d.action === 'open_long' || d.action === 'open_short') opens++;
+      if (d.action === 'close') closes++;
+      if (position.side !== 'flat') exposed++;
+      const pnl = realized + unrealizedPct(position, c.close);
+      peak = Math.max(peak, pnl); maxDrawdownPts = Math.max(maxDrawdownPts, peak - pnl);
+      points.push({ pnl, buyHold: 100 * (c.close / first - 1) - FEE_BPS_PER_UNIT / 100 });
+    });
+    const mark = s.candles.at(-1)!.close;
+    return { symbol: s.symbol, points, row: {
+      symbol: s.symbol, pnlPct: realized + unrealizedPct(position, mark), realizedPct: realized, unrealizedPct: unrealizedPct(position, mark), feesPct: fees,
+      trades, opens, closes, timeInPositionPct: 100 * exposed / bars, maxDrawdownPts, endingSide: position.side, endingUnits: position.units, buyHoldPct: points.at(-1)!.buyHold,
+    } };
+  });
+  const mean = (f: (s: typeof sleeves[number]) => number) => sleeves.reduce((a, s) => a + f(s), 0) / sleeves.length;
+  let peak = 0, maxDrawdownPts = 0;
+  const curve: ActionCurvePoint[] = [{ time: new Date(from * 1000).toISOString(), pnlPct: 0, drawdownPts: 0, buyHoldPct: 0 }];
+  for (let i = 0; i < bars; i++) {
+    const pnlPct = mean(s => s.points[i].pnl);
+    peak = Math.max(peak, pnlPct); maxDrawdownPts = Math.max(maxDrawdownPts, peak - pnlPct);
+    curve.push({ time: new Date((from + (i + 1) * ACTION_STEP_SECONDS) * 1000).toISOString(), pnlPct, drawdownPts: peak - pnlPct, buyHoldPct: mean(s => s.points[i].buyHold) });
+  }
+  const perSymbol = sleeves.map(s => s.row);
+  return {
+    kind: 'action_units' as const, pnlPct: curve.at(-1)!.pnlPct, buyHoldPct: curve.at(-1)!.buyHoldPct, maxDrawdownPts,
+    feesPct: mean(s => s.row.feesPct), trades: perSymbol.reduce((a, r) => a + r.trades, 0), curve, perSymbol,
+    assumptions: { intervalMinutes: ACTION_INTERVAL_MINUTES, feeBpsPerUnit: FEE_BPS_PER_UNIT, maxUnits: MAX_UNITS, pnlUnit: 'percent_of_one_unit_notional' as const,
+      portfolio: 'equal_weight_mean_of_symbols' as const, execution: 'cutoff_candle_close' as const, sizing: 'open_1_add_1_max_3_reduce_half_close_flat' as const,
+      initialPosition: 'flat' as const, endingPosition: 'marked_to_market_not_liquidated' as const, buyHold: 'one_unit_long_from_first_cutoff_close' as const,
+      fundingIncluded: false as const, slippageIncluded: false as const, reconstruction: true as const },
   };
 }

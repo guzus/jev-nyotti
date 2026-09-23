@@ -6,6 +6,8 @@ function integer(name: string, fallback: number, min: number, max: number) {
   return n;
 }
 
+export type TrainingStatus = 'base'|'fine_tuned'|'action_v1';
+
 export function readConfig() {
   const apiKey = process.env.API_KEY ?? '';
   if (apiKey && apiKey.length < 32) throw new Error('API_KEY must contain at least 32 characters');
@@ -24,10 +26,10 @@ export function readConfig() {
     if (inferenceKey.length < 32) throw new Error('INFERENCE_API_KEY must contain at least 32 characters');
   }
   const trainingStatus = process.env.MODEL_TRAINING_STATUS ?? 'base';
-  if (!['base', 'fine_tuned'].includes(trainingStatus)) throw new Error('Invalid MODEL_TRAINING_STATUS');
+  if (!['base', 'fine_tuned', 'action_v1'].includes(trainingStatus)) throw new Error('Invalid MODEL_TRAINING_STATUS');
   const modelId = process.env.MODEL_ID ?? 'Qwen/Qwen3.5-4B';
   const modelRevision = process.env.MODEL_REVISION ?? 'base';
-  if (trainingStatus === 'fine_tuned' && modelRevision === 'base') throw new Error('Fine-tuned model requires a revision identifier');
+  if (trainingStatus !== 'base' && modelRevision === 'base') throw new Error('Fine-tuned model requires a revision identifier');
   const gaMeasurementId=process.env.GA_MEASUREMENT_ID??'';
   if(gaMeasurementId&&!/^G-[A-Z0-9]+$/.test(gaMeasurementId))throw new Error('Invalid GA_MEASUREMENT_ID');
   const scheduled=process.env.SCHEDULED_ANALYSIS_ENABLED??'false';
@@ -35,7 +37,7 @@ export function readConfig() {
   return {
     gaMeasurementId:gaMeasurementId||null,scheduledAnalysisEnabled:scheduled==='true',
     port: integer('PORT', 3000, 1, 65535), dataDir: resolve(process.env.DATA_DIR ?? '.runtime'),
-    apiKey, inferenceUrl, inferenceKey, modalKey, modalSecret, modelId, modelRevision, trainingStatus: trainingStatus as 'base'|'fine_tuned',
+    apiKey, inferenceUrl, inferenceKey, modalKey, modalSecret, modelId, modelRevision, trainingStatus: trainingStatus as TrainingStatus,
     dailyLimit: integer('MAX_DAILY_EVALUATIONS', 300, 1, 10000),
     publicRate: integer('PUBLIC_REQUESTS_PER_MINUTE', 6, 1, 60),
     inferenceTimeout: integer('INFERENCE_TIMEOUT_MS', 120000, 1000, 300000),
