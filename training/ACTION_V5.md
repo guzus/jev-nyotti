@@ -61,3 +61,38 @@ all actions. Raw net therefore rewards market beta. The 2024 selection is amende
   Net, drawdown and the control-relative excess are reported for every candidate.
 - The gate on confirmation is unchanged.
 - Added report item: V5 against the 1-unit hold control on confirmation, per symbol.
+
+## Measured outcome — 2026-09-23: gate FAILED, not deployed
+
+**Search:** 639 rule configs on 2023, logged in `benchmarks/runs/`.
+
+**2024 selection** (`benchmarks/v5_selection_2024.json`): the highest-Sharpe eligible candidate was
+`{"allowed": ["open_long", "add", "close"], "margins": {"flat": -0.68, "position": -4}}`.
+
+| | Sharpe | Net | Time in position |
+|---|---:|---:|---:|
+| Selected candidate | 1.60 | +182.7 % | 98 % |
+| 1-unit hold control | 1.08 | +114.2 % | — |
+| Only long/short candidate | −1.34 | −54.3 % | — |
+
+**Confirmation, 2025-01-02 → 2026-06-23** ([results](ACTION_V5_RESULTS.json)). This was a bear
+market, with 4-coin buy-and-hold −48.9 %.
+
+| | 4-coin mean net | Fees |
+|---|---:|---:|
+| V5 | −126.3 % | 10.6 % |
+| V4 | −527.3 % | 543.1 % |
+| 1-unit hold | −48.9 % | — |
+| 3-unit hold | −147.8 % | — |
+
+Next-open fills give −126.1 %.
+
+| Criterion | Result |
+|---|---|
+| Beats V4 | pass |
+| Activity floor | pass |
+| BTC time in position ≤ 95 % | **fail** (98.4 %) |
+
+Finding: turnover controls remove the fee drag (fees fall from 543 % to 11 %), but no
+directional edge survives. The configs that won in-sample were leveraged long beta and lost in
+the bear window. V4 stays live.

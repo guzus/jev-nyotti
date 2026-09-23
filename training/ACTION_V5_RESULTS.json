@@ -1,0 +1,259 @@
+{
+ "criteria": {
+  "beats_V4": true,
+  "activity_floor": true,
+  "btc_non_absorbing": false
+ },
+ "passed": false,
+ "years": 1.471261415525114,
+ "rules": {
+  "allowed": [
+   "open_long",
+   "add",
+   "close"
+  ],
+  "margins": {
+   "flat": -0.68,
+   "position": -4
+  }
+ },
+ "results": {
+  "V5": {
+   "mean": {
+    "net_return_pct": -126.27294183164678,
+    "fees_pct": 10.556249999999997,
+    "max_drawdown_pct": 208.65688199242717,
+    "daily_sharpe": -0.7130195770625863,
+    "time_in_position": 0.9873431226116811,
+    "buy_hold_pct": -48.85972496385589,
+    "trades": 556
+   },
+   "per_symbol": {
+    "BTCUSD": {
+     "net_return_pct": -104.11285108204697,
+     "fees_pct": 7.875000000000005,
+     "trades": 101,
+     "opens": 38,
+     "closes": 37,
+     "time_in_position": 0.9844625918957189,
+     "max_drawdown_pct": 158.54231008892992,
+     "buy_hold_pct": -32.319697089990576,
+     "daily_sharpe": -0.9519885529219823
+    },
+    "ETHUSD": {
+     "net_return_pct": -112.10551356993894,
+     "fees_pct": 4.125000000000003,
+     "trades": 70,
+     "opens": 19,
+     "closes": 18,
+     "time_in_position": 0.9954415843888813,
+     "max_drawdown_pct": 205.64147221836834,
+     "buy_hold_pct": -48.571590117784304,
+     "daily_sharpe": -0.5456861136321655
+    },
+    "SOLUSD": {
+     "net_return_pct": -136.71367901285558,
+     "fees_pct": 3.825000000000002,
+     "trades": 61,
+     "opens": 15,
+     "closes": 14,
+     "time_in_position": 0.9860531879813008,
+     "max_drawdown_pct": 227.36469202759332,
+     "buy_hold_pct": -62.96582252419189,
+     "daily_sharpe": -0.6182284626595799
+    },
+    "XRPUSD": {
+     "net_return_pct": -152.15972366174563,
+     "fees_pct": 26.399999999999977,
+     "trades": 324,
+     "opens": 111,
+     "closes": 110,
+     "time_in_position": 0.9834151261808236,
+     "max_drawdown_pct": 243.0790536348171,
+     "buy_hold_pct": -51.58179012345679,
+     "daily_sharpe": -0.7361751790366177
+    }
+   }
+  },
+  "V4": {
+   "mean": {
+    "net_return_pct": -527.2784398372862,
+    "fees_pct": 543.0499290880063,
+    "max_drawdown_pct": 541.6545605393995,
+    "daily_sharpe": -3.674894479232397,
+    "time_in_position": 0.5332036932865206,
+    "buy_hold_pct": -48.85972496385589,
+    "trades": 36696
+   },
+   "per_symbol": {
+    "BTCUSD": {
+     "net_return_pct": -325.91730517213495,
+     "fees_pct": 306.12710813060795,
+     "trades": 6122,
+     "opens": 759,
+     "closes": 759,
+     "time_in_position": 0.4602447966170737,
+     "max_drawdown_pct": 329.4064478290456,
+     "buy_hold_pct": -32.319697089990576,
+     "daily_sharpe": -3.774948153296727
+    },
+    "ETHUSD": {
+     "net_return_pct": -655.8858922915844,
+     "fees_pct": 585.8835374601985,
+     "trades": 9860,
+     "opens": 1549,
+     "closes": 1548,
+     "time_in_position": 0.5498613077803426,
+     "max_drawdown_pct": 670.229496868417,
+     "buy_hold_pct": -48.571590117784304,
+     "daily_sharpe": -4.489909597306625
+    },
+    "SOLUSD": {
+     "net_return_pct": -632.471574156677,
+     "fees_pct": 651.7871145844538,
+     "trades": 10742,
+     "opens": 1685,
+     "closes": 1685,
+     "time_in_position": 0.5927880045778131,
+     "max_drawdown_pct": 662.111279500744,
+     "buy_hold_pct": -62.96582252419189,
+     "daily_sharpe": -3.3133937290672004
+    },
+    "XRPUSD": {
+     "net_return_pct": -494.8389877287484,
+     "fees_pct": 628.401956176765,
+     "trades": 9972,
+     "opens": 1635,
+     "closes": 1635,
+     "time_in_position": 0.5299206641708533,
+     "max_drawdown_pct": 504.87101795939174,
+     "buy_hold_pct": -51.58179012345679,
+     "daily_sharpe": -3.121326437259034
+    }
+   }
+  },
+  "hold_1u": {
+   "mean": {
+    "net_return_pct": -48.93472496385589,
+    "fees_pct": 0.075,
+    "max_drawdown_pct": 101.05160667755757,
+    "daily_sharpe": -0.5886645788894075,
+    "time_in_position": 1.0,
+    "buy_hold_pct": -48.85972496385589,
+    "trades": 4
+   },
+   "per_symbol": {
+    "BTCUSD": {
+     "net_return_pct": -32.39469708999057,
+     "fees_pct": 0.075,
+     "trades": 1,
+     "opens": 1,
+     "closes": 0,
+     "time_in_position": 1.0,
+     "max_drawdown_pct": 70.42781408407642,
+     "buy_hold_pct": -32.319697089990576,
+     "daily_sharpe": -0.5750884625807189
+    },
+    "ETHUSD": {
+     "net_return_pct": -48.6465901177843,
+     "fees_pct": 0.075,
+     "trades": 1,
+     "opens": 1,
+     "closes": 0,
+     "time_in_position": 1.0,
+     "max_drawdown_pct": 101.89353585011219,
+     "buy_hold_pct": -48.571590117784304,
+     "daily_sharpe": -0.57022920044387
+    },
+    "SOLUSD": {
+     "net_return_pct": -63.040822524191896,
+     "fees_pct": 0.075,
+     "trades": 1,
+     "opens": 1,
+     "closes": 0,
+     "time_in_position": 1.0,
+     "max_drawdown_pct": 120.491043854231,
+     "buy_hold_pct": -62.96582252419189,
+     "daily_sharpe": -0.7315395579309071
+    },
+    "XRPUSD": {
+     "net_return_pct": -51.656790123456794,
+     "fees_pct": 0.075,
+     "trades": 1,
+     "opens": 1,
+     "closes": 0,
+     "time_in_position": 1.0,
+     "max_drawdown_pct": 111.39403292181072,
+     "buy_hold_pct": -51.58179012345679,
+     "daily_sharpe": -0.47780109460213394
+    }
+   }
+  },
+  "hold_3u": {
+   "mean": {
+    "net_return_pct": -147.8166358287983,
+    "fees_pct": 0.22500000000000003,
+    "max_drawdown_pct": 300.89094477323346,
+    "daily_sharpe": -0.5886645788894075,
+    "time_in_position": 1.0,
+    "buy_hold_pct": -48.85972496385589,
+    "trades": 206212
+   },
+   "per_symbol": {
+    "BTCUSD": {
+     "net_return_pct": -97.3802840347712,
+     "fees_pct": 0.22500000000000003,
+     "trades": 51553,
+     "opens": 1,
+     "closes": 0,
+     "time_in_position": 1.0,
+     "max_drawdown_pct": 211.0792849572729,
+     "buy_hold_pct": -32.319697089990576,
+     "daily_sharpe": -0.5750884625807191
+    },
+    "ETHUSD": {
+     "net_return_pct": -146.32987881264307,
+     "fees_pct": 0.22500000000000003,
+     "trades": 51553,
+     "opens": 1,
+     "closes": 0,
+     "time_in_position": 1.0,
+     "max_drawdown_pct": 304.9076975892245,
+     "buy_hold_pct": -48.571590117784304,
+     "daily_sharpe": -0.5702292004438702
+    },
+    "SOLUSD": {
+     "net_return_pct": -189.23789673757923,
+     "fees_pct": 0.22500000000000003,
+     "trades": 51553,
+     "opens": 1,
+     "closes": 0,
+     "time_in_position": 1.0,
+     "max_drawdown_pct": 361.0975816914535,
+     "buy_hold_pct": -62.96582252419189,
+     "daily_sharpe": -0.731539557930907
+    },
+    "XRPUSD": {
+     "net_return_pct": -158.3184837301997,
+     "fees_pct": 0.22500000000000003,
+     "trades": 51553,
+     "opens": 1,
+     "closes": 0,
+     "time_in_position": 1.0,
+     "max_drawdown_pct": 326.4792148549829,
+     "buy_hold_pct": -51.58179012345679,
+     "daily_sharpe": -0.4778010946021338
+    }
+   }
+  }
+ },
+ "v5_next_open_mean": {
+  "net_return_pct": -126.1345459937597,
+  "fees_pct": 10.556249999999997,
+  "max_drawdown_pct": 208.49453150135093,
+  "daily_sharpe": -0.7123300348937112,
+  "time_in_position": 0.9873334238550617,
+  "buy_hold_pct": -48.85972496385589,
+  "trades": 556
+ }
+}

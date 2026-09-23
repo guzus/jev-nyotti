@@ -1,0 +1,362 @@
+[
+ {
+  "kind": "V4 reference",
+  "rules": {
+   "margins": {
+    "flat": -0.68,
+    "position": -0.25
+   }
+  },
+  "mean": {
+   "net_return_pct": -363.96,
+   "fees_pct": 384.604,
+   "max_drawdown_pct": 399.536,
+   "daily_sharpe": -3.615,
+   "time_in_position": 0.507,
+   "buy_hold_pct": 114.251,
+   "trades": 25746
+  },
+  "opens": {
+   "BTCUSD": 466,
+   "ETHUSD": 791,
+   "SOLUSD": 1466,
+   "XRPUSD": 1195
+  },
+  "floor": true,
+  "per_symbol_net": {
+   "BTCUSD": -216.6,
+   "ETHUSD": -348.5,
+   "SOLUSD": -424.1,
+   "XRPUSD": -466.7
+  }
+ },
+ {
+  "kind": "control",
+  "rules": {
+   "allowed": [
+    "open_long"
+   ],
+   "margins": {
+    "flat": 20,
+    "position": 0
+   }
+  },
+  "mean": {
+   "net_return_pct": 114.176,
+   "fees_pct": 0.075,
+   "max_drawdown_pct": 92.411,
+   "daily_sharpe": 1.08,
+   "time_in_position": 1.0,
+   "buy_hold_pct": 114.251,
+   "trades": 4
+  },
+  "opens": {
+   "BTCUSD": 1,
+   "ETHUSD": 1,
+   "SOLUSD": 1,
+   "XRPUSD": 1
+  },
+  "floor": false,
+  "per_symbol_net": {
+   "BTCUSD": 111.7,
+   "ETHUSD": 41.8,
+   "SOLUSD": 72.2,
+   "XRPUSD": 231.0
+  }
+ },
+ {
+  "kind": "control",
+  "rules": {
+   "allowed": [
+    "open_long",
+    "add"
+   ],
+   "margins": {
+    "flat": 20,
+    "position": 20
+   }
+  },
+  "mean": {
+   "net_return_pct": 341.538,
+   "fees_pct": 0.225,
+   "max_drawdown_pct": 277.02,
+   "daily_sharpe": 1.08,
+   "time_in_position": 1.0,
+   "buy_hold_pct": 114.251,
+   "trades": 132047
+  },
+  "opens": {
+   "BTCUSD": 1,
+   "ETHUSD": 1,
+   "SOLUSD": 1,
+   "XRPUSD": 1
+  },
+  "floor": false,
+  "per_symbol_net": {
+   "BTCUSD": 331.0,
+   "ETHUSD": 124.2,
+   "SOLUSD": 219.4,
+   "XRPUSD": 691.5
+  }
+ },
+ {
+  "kind": "candidate",
+  "rules": {
+   "allowed": [
+    "open_long",
+    "close"
+   ],
+   "margins": {
+    "flat": -0.68,
+    "position": -0.25
+   },
+   "min_hold_bars": 64,
+   "cooldown_bars": 24
+  },
+  "mean": {
+   "net_return_pct": 50.633,
+   "fees_pct": 23.213,
+   "max_drawdown_pct": 46.387,
+   "daily_sharpe": 0.986,
+   "time_in_position": 0.575,
+   "buy_hold_pct": 114.251,
+   "trades": 1238
+  },
+  "opens": {
+   "BTCUSD": 126,
+   "ETHUSD": 174,
+   "SOLUSD": 156,
+   "XRPUSD": 164
+  },
+  "floor": true,
+  "per_symbol_net": {
+   "BTCUSD": 27.9,
+   "ETHUSD": 41.7,
+   "SOLUSD": 59.0,
+   "XRPUSD": 74.0
+  }
+ },
+ {
+  "kind": "candidate",
+  "rules": {
+   "allowed": [
+    "open_long",
+    "close"
+   ],
+   "margins": {
+    "flat": -0.27,
+    "position": 0.03
+   },
+   "min_hold_bars": 480,
+   "open_prob_min": 0.4,
+   "trend_filter": "return_24h_pct"
+  },
+  "mean": {
+   "net_return_pct": 59.948,
+   "fees_pct": 6.075,
+   "max_drawdown_pct": 57.247,
+   "daily_sharpe": 0.989,
+   "time_in_position": 0.814,
+   "buy_hold_pct": 114.251,
+   "trades": 324
+  },
+  "opens": {
+   "BTCUSD": 40,
+   "ETHUSD": 50,
+   "SOLUSD": 33,
+   "XRPUSD": 41
+  },
+  "floor": true,
+  "per_symbol_net": {
+   "BTCUSD": 53.3,
+   "ETHUSD": 34.5,
+   "SOLUSD": 33.7,
+   "XRPUSD": 118.2
+  }
+ },
+ {
+  "kind": "candidate",
+  "rules": {
+   "allowed": [
+    "open_long",
+    "open_short",
+    "close"
+   ],
+   "margins": {
+    "flat": -0.68,
+    "position": -0.25
+   },
+   "min_hold_bars": 32,
+   "cooldown_bars": 48
+  },
+  "mean": {
+   "net_return_pct": -54.341,
+   "fees_pct": 21.637,
+   "max_drawdown_pct": 92.833,
+   "daily_sharpe": -1.34,
+   "time_in_position": 0.614,
+   "buy_hold_pct": 114.251,
+   "trades": 1154
+  },
+  "opens": {
+   "BTCUSD": 82,
+   "ETHUSD": 184,
+   "SOLUSD": 158,
+   "XRPUSD": 154
+  },
+  "floor": true,
+  "per_symbol_net": {
+   "BTCUSD": -74.1,
+   "ETHUSD": -81.3,
+   "SOLUSD": -24.9,
+   "XRPUSD": -37.1
+  }
+ },
+ {
+  "kind": "candidate",
+  "rules": {
+   "allowed": [
+    "open_long",
+    "add",
+    "close"
+   ],
+   "margins": {
+    "flat": -0.68,
+    "position": -0.5
+   },
+   "min_hold_bars": 96,
+   "cooldown_bars": 48
+  },
+  "mean": {
+   "net_return_pct": 80.344,
+   "fees_pct": 30.581,
+   "max_drawdown_pct": 137.432,
+   "daily_sharpe": 0.614,
+   "time_in_position": 0.735,
+   "buy_hold_pct": 114.251,
+   "trades": 5139
+  },
+  "opens": {
+   "BTCUSD": 81,
+   "ETHUSD": 82,
+   "SOLUSD": 41,
+   "XRPUSD": 89
+  },
+  "floor": true,
+  "per_symbol_net": {
+   "BTCUSD": 94.7,
+   "ETHUSD": 43.8,
+   "SOLUSD": -34.9,
+   "XRPUSD": 217.7
+  }
+ },
+ {
+  "kind": "candidate",
+  "rules": {
+   "margins": {
+    "flat": -0.68,
+    "position": -4
+   },
+   "allowed": [
+    "open_long",
+    "add",
+    "close"
+   ]
+  },
+  "mean": {
+   "net_return_pct": 182.72,
+   "fees_pct": 10.369,
+   "max_drawdown_pct": 81.694,
+   "daily_sharpe": 1.6,
+   "time_in_position": 0.982,
+   "buy_hold_pct": 114.251,
+   "trades": 520
+  },
+  "opens": {
+   "BTCUSD": 43,
+   "ETHUSD": 34,
+   "SOLUSD": 31,
+   "XRPUSD": 63
+  },
+  "floor": true,
+  "per_symbol_net": {
+   "BTCUSD": 76.0,
+   "ETHUSD": 148.2,
+   "SOLUSD": 161.9,
+   "XRPUSD": 344.7
+  }
+ },
+ {
+  "kind": "candidate",
+  "rules": {
+   "margins": {
+    "flat": -2,
+    "position": -3.25
+   },
+   "trend_filter": "return_24h_pct",
+   "min_hold_bars": 192,
+   "cooldown_bars": 48
+  },
+  "mean": {
+   "net_return_pct": -23.164,
+   "fees_pct": 8.707,
+   "max_drawdown_pct": 165.786,
+   "daily_sharpe": -0.086,
+   "time_in_position": 0.68,
+   "buy_hold_pct": 114.251,
+   "trades": 708
+  },
+  "opens": {
+   "BTCUSD": 13,
+   "ETHUSD": 23,
+   "SOLUSD": 14,
+   "XRPUSD": 22
+  },
+  "floor": true,
+  "per_symbol_net": {
+   "BTCUSD": 5.0,
+   "ETHUSD": 129.4,
+   "SOLUSD": -176.1,
+   "XRPUSD": -51.0
+  }
+ },
+ {
+  "kind": "candidate",
+  "rules": {
+   "allowed": [
+    "open_long",
+    "add",
+    "close"
+   ],
+   "cooldown_bars": 4,
+   "margins": {
+    "flat": -0.43,
+    "position": 0.37
+   },
+   "min_hold_bars": 2016,
+   "open_prob_min": 0.4
+  },
+  "mean": {
+   "net_return_pct": 323.839,
+   "fees_pct": 5.513,
+   "max_drawdown_pct": 169.116,
+   "daily_sharpe": 1.466,
+   "time_in_position": 0.981,
+   "buy_hold_pct": 114.251,
+   "trades": 37487
+  },
+  "opens": {
+   "BTCUSD": 13,
+   "ETHUSD": 13,
+   "SOLUSD": 12,
+   "XRPUSD": 13
+  },
+  "floor": true,
+  "per_symbol_net": {
+   "BTCUSD": 272.8,
+   "ETHUSD": 151.3,
+   "SOLUSD": 206.0,
+   "XRPUSD": 665.2
+  }
+ }
+]
