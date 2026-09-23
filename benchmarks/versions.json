@@ -1,0 +1,23 @@
+[
+ {
+  "version": "buy&hold 1u",
+  "benchmark_net_pct": -48.9,
+  "note": "control",
+  "benchmark": "Fixed benchmark: Binance 15m 2025-01-02 → 2026-06-23, BTC/ETH/SOL/XRP mean net % (fee-inclusive, unit notional)"
+ },
+ {
+  "version": "V3",
+  "benchmark_net_pct": -964.2,
+  "note": "gate ✗"
+ },
+ {
+  "version": "V4 (live)",
+  "benchmark_net_pct": -527.3,
+  "note": "gate ✓"
+ },
+ {
+  "version": "V5",
+  "benchmark_net_pct": -126.3,
+  "note": "gate ✗"
+ }
+]

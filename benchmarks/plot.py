@@ -43,9 +43,11 @@ def main() -> None:
     for family, color in COLORS.items():
         top.scatter([], [], color=color, label=family)
     top.axhline(0, color='#333', lw=.8, ls=':')
+    top.axhline(311.1, color='#555', lw=1, ls='--')
+    top.annotate('2023 buy & hold (+311 %): in-sample bull year, not skill', (0, 311.1), xytext=(4, 4), textcoords='offset points', fontsize=8, color='#555')
     top.set_yscale('symlog', linthresh=10)
-    top.set_title(f'Decision-rule search on 2023 tune window · {len(rows)} experiments · fee-inclusive 4-coin mean net %')
-    top.set_xlabel('experiment #')
+    top.set_title(f'V5 decision-rule search · IN-SAMPLE 2023 tune window · {len(rows)} experiments · fee-inclusive 4-coin mean net %')
+    top.set_xlabel('experiment # (grouped by search family)')
     top.set_ylabel('net return % (symlog)')
     top.legend(loc='lower right', fontsize=8, ncol=5)
     names = [v['version'] for v in versions]

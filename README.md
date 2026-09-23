@@ -53,6 +53,32 @@ Use `Qwen/Qwen3.5-4B` as the client model. This preserves TypeSafe's wire format
 - It is shown as a labelled experiment by owner decision.
 - The Qwen LoRA attempts ([V1](training/ACTION_V1.md), [V2](training/ACTION_V2.md)) failed too. Qwen still serves `/v1/systemone`.
 
+## Benchmark · autoresearch log
+
+![Research progress](benchmarks/progress.png)
+
+Every experiment is logged in `benchmarks/runs/*.jsonl` and re-plotted with
+`.runtime/action-venv/bin/python benchmarks/plot.py`.
+
+- **Top:** 639 decision-rule experiments run by four parallel search agents, on the 2023 tune
+  window. These results are **in-sample**, and 2023 was a +311 % buy-and-hold year.
+- **Bottom:** each version on one fixed out-of-sample benchmark: Binance 15m, 2025-01-02 → 2026-06-23,
+  BTC/ETH/SOL/XRP mean net, fee-inclusive at 7.5 bps per unit traded.
+
+Each version is pre-registered with its gate committed before scoring (`training/ACTION_V*.md`).
+
+| Version | What changed | Gate | Fixed benchmark |
+|---|---|---|---:|
+| V1 | Qwen LoRA, stateful actions | ✗ stuck in position | — |
+| V2 | Qwen LoRA, no self-referential time fields | ✗ stuck flat (flat-open AUC 0.54) | — |
+| V3 | logistic regression, Mar+Apr 2018 | ✗ over-trades 4.1× | −964 % |
+| **V4 (live)** | V3 plus per-state rate-matched margins | ✓ imitation gate | −527 % |
+| V5 | V4 plus cost-aware rules chosen on 2023/2024 | ✗ long beta, 98 % time in position | −126 % |
+| 1-unit buy & hold | control | — | −49 % |
+
+"Better imitation" and "profitable" are different targets. No version has beaten buy-and-hold
+out of sample, after fees.
+
 [Training: real-data pilot and rehearsal](training/README.md) · [Deployment and recovery](docs/deployment.md) · [Inference service](inference/README.md) · [Future dataset/evaluation plan](docs/experiment.md)
 
 ## Verify
