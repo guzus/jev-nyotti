@@ -4,7 +4,7 @@ import { ACTION_DISCLAIMER, ACTION_LABELS } from './action.js';
 
 type Report = ReturnType<typeof import('../server/pnl.js').simulateActionReplay>;
 type Row = { symbol: string; marketAsOf: string; action: keyof typeof ACTION_LABELS; sideAfter: 'flat' | 'long' | 'short'; unitsAfter: number; price: number };
-export type ActionReplayPayload = { task: 'ACTION_V1'; status: 'ready'; model: string; revision: string; holdMargin: number; generatedAt: string; source: string; history: Row[]; report: Report };
+export type ActionReplayPayload = { task: 'ACTION_V1'; status: 'ready'; model: string; revision: string; holdMargin: number | { flat: number; position: number }; generatedAt: string; source: string; history: Row[]; report: Report };
 const pct = (n: number, digits = 2) => `${n > 0 ? '+' : ''}${n.toFixed(digits)}%`;
 const side = { flat: '무포지션', long: '롱', short: '숏' };
 
@@ -23,7 +23,7 @@ export function ActionPerformance({ data }: { data: ActionReplayPayload }) {
       <div><span>체결 · 종목 평균 누적 수수료</span><strong>{trades.toLocaleString()}회 · {r.feesPct.toFixed(2)}%</strong></div>
     </div>
     <div className="performance-chart" role="img" aria-label="ACTION_V1 페이퍼 손익 및 매수 후 보유 곡선"><ResponsiveContainer width="100%" height="100%"><LineChart data={r.curve}><CartesianGrid vertical={false} stroke="#e8e2d8" /><XAxis dataKey="time" tickFormatter={(v) => String(v).slice(5, 10)} minTickGap={65} /><YAxis tickFormatter={(v) => `${Number(v).toFixed(1)}%`} width={60} /><Tooltip formatter={(v) => pct(Number(v))} labelFormatter={(v) => String(v).slice(0, 16).replace('T', ' ')} /><Line name="jev뇨띠" dataKey="pnlPct" stroke="#a95546" dot={false} isAnimationActive={false} /><Line name="매수 후 보유" dataKey="buyHoldPct" stroke="#99958c" strokeDasharray="4 4" dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>
-    <p className="performance-range">실선 jev뇨띠 · 점선 1단위 매수 후 보유 · UTC · {first.time.slice(0, 16).replace('T', ' ')} — {last.time.slice(0, 16).replace('T', ' ')} · <span title={data.source}>{data.source}</span> · <span title={data.revision}>{data.revision.split('@').at(-1)?.slice(0, 7)}</span> · 관망 마진 {data.holdMargin}</p>
+    <p className="performance-range">실선 jev뇨띠 · 점선 1단위 매수 후 보유 · UTC · {first.time.slice(0, 16).replace('T', ' ')} — {last.time.slice(0, 16).replace('T', ' ')} · <span title={data.source}>{data.source}</span> · <span title={data.revision}>{data.revision.split('@').at(-1)?.slice(0, 7)}</span> · 관망 마진 {typeof data.holdMargin === 'number' ? data.holdMargin : `무포지션 ${data.holdMargin.flat} · 보유 중 ${data.holdMargin.position}`}</p>
     <div className="performance-symbols">{r.perSymbol.map((row) => <div key={row.symbol}><span>{row.symbol.replace(/USDT?$/, '')}</span><strong>{pct(row.pnlPct)}</strong><span>진입 {row.opens} · 청산 {row.closes} · 보유 {row.timeInPositionPct.toFixed(0)}%</span></div>)}</div>
     {!!data.history.length && <details className="performance-rules"><summary>실행된 행동 기록 · {data.history.length.toLocaleString()}건 (관망 제외)</summary>
       <div className="replay-history-controls"><label>종목 <select value={symbol} onChange={(e) => { setSymbol(e.target.value); setPage(0); }}><option>전체</option>{r.perSymbol.map((row) => <option key={row.symbol}>{row.symbol}</option>)}</select></label><span>최신순 · UTC · 행동 → 이후 포지션</span></div>

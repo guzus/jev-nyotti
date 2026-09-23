@@ -6,8 +6,7 @@
   ],
   "policy": "numeric",
   "model": "jev-numeric/logreg",
-  "artifact_sha256": "2e068dade97ca0760eec0c164c09cea5d76af921191e34646fd98c2d5f105292",
-  "hf": "guzus/jev-nyotti-action@f6390940b9a4e44d0511493faae0be601aa05c34",
+  "artifact_sha256": "9101f3f5d92418f0de055962354c729c47c05c3b864ea9288bbccfc666992392",
   "replay": "inference/action_replay_local.py (CPU, from flat per symbol)",
   "symbols": {
     "BTCUSD": "21b69d46a62878eeaf302693e60bddd9cc318eaba905c081abe46e56acbd7cbc",
@@ -20,5 +19,11 @@
     "NEARUSD": "63db53b8f45c3fa27c4491c7d2188eedbbfd95f5f9f9f9a42e0a58af12f1e885",
     "PEPEUSD": "fa74aa08bd9314edafac641658d63753736253c6c0c6a6f3064672365bbc2560",
     "ZECUSD": "4524fd346ef8f9361403d29f523facf4dd52f14ae2e7189a147f3ea1a56d3f66"
-  }
+  },
+  "hold_margin": {
+    "flat": -0.68,
+    "position": -0.25
+  },
+  "contract": "training/ACTION_V4.md",
+  "hf": "guzus/jev-nyotti-action@11c710beb5f4a58fd3858115b76776c04a29ab59"
 }

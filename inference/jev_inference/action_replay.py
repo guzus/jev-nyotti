@@ -163,7 +163,7 @@ def restore_positions(plan: Plan, state: dict, margin: float) -> dict[str, dict]
         position = positions[symbol]
         if record["options"] != list(action_task.options_for(position["side"])):
             raise ValueError("checkpoint options do not match carried position")
-        if decide(record["options"], record["logits"], margin) != record["action"]:
+        if decide(record["options"], record["logits"], action_task.margin_for(margin, position["side"])) != record["action"]:
             raise ValueError("checkpoint decision does not match logits and margin")
         if record["price"] != plan.price(symbol, cutoff):
             raise ValueError("checkpoint price does not match input")
@@ -186,7 +186,7 @@ def step(plan: Plan, positions: dict[str, dict], cutoff: int, score: Scorer, mar
     for symbol, job, result in zip(plan.symbols, jobs, scores, strict=True):
         names = [o["name"] for o in job["options"]]
         logits = [float(v) for v in result.logits]
-        action = decide(names, logits, margin)
+        action = decide(names, logits, action_task.margin_for(margin, positions[symbol]["side"]))
         price = plan.price(symbol, cutoff)
         after = action_task.apply_action(positions[symbol], action, price, cutoff)
         records.append(dict(symbol=symbol, marketAsOf=iso(cutoff), sideBefore=positions[symbol]["side"], options=names,

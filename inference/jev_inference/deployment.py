@@ -15,6 +15,8 @@ file whose hash differs and the container re-verifies it at startup.
 """
 from __future__ import annotations
 
+import json
+
 SERVING = {
     # modal_app.py: original base checkpoint, no adapter.
     'jev-qwen-35-4b': dict(adapter_id=None, adapter_revision=None, adapter_sha256=None, action_hold_margin=0.0),
@@ -29,8 +31,9 @@ SERVING = {
 
 # Numeric policy apps: set both pins from `training/numeric_export.py` output before deploying.
 NUMERIC_SERVING = {
-    # ACTION_V3 logistic regression (training/ACTION_V3.md; gate FAILED, served as a labelled experiment by user decision).
-    'jev-nyotti-action-cpu': dict(numeric_model_sha256='2e068dade97ca0760eec0c164c09cea5d76af921191e34646fd98c2d5f105292', action_hold_margin=0.1),
+    # ACTION_V4 (training/ACTION_V4.md; gate PASSED): V3 logistic-regression weights, per-family hold margins.
+    'jev-nyotti-action-cpu': dict(numeric_model_sha256='9101f3f5d92418f0de055962354c729c47c05c3b864ea9288bbccfc666992392',
+                                  action_hold_margin={'flat': -0.68, 'position': -0.25}),
 }
 NUMERIC_MODEL_REMOTE_PATH = '/opt/model/numeric_policy.json'
 
@@ -46,7 +49,7 @@ def numeric_image_env(app_name: str) -> dict[str, str]:
              numeric_model_path=NUMERIC_MODEL_REMOTE_PATH, **entry)
     return {'ACTION_POLICY': 'numeric', 'INFERENCE_DEVICE': 'cpu', 'NUMERIC_MODEL_PATH': NUMERIC_MODEL_REMOTE_PATH,
             'NUMERIC_MODEL_SHA256': entry['numeric_model_sha256'],
-            'ACTION_HOLD_MARGIN': repr(float(entry['action_hold_margin']))}
+            'ACTION_HOLD_MARGIN': json.dumps(entry['action_hold_margin'], sort_keys=True) if isinstance(entry['action_hold_margin'], dict) else repr(float(entry['action_hold_margin']))}
 
 
 def image_env(app_name: str) -> dict[str, str]:

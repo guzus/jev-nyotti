@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from jev_inference import action_replay as ar  # noqa: E402
-from jev_inference import numeric_policy  # noqa: E402
+from jev_inference import action_task, numeric_policy  # noqa: E402
 from jev_inference.replay import iso  # noqa: E402
 
 
@@ -28,14 +28,16 @@ def main(argv: list[str] | None = None) -> dict:
     parser.add_argument('--out-dir', type=Path, required=True)
     parser.add_argument('--numeric-model', required=True)
     parser.add_argument('--numeric-sha256', required=True)
-    parser.add_argument('--hold-margin', type=float)
+    parser.add_argument('--hold-margin', type=lambda v: json.loads(v), help='number or JSON {"flat": m, "position": m}')
     parser.add_argument('--max-decisions', type=int, default=10**9)
     parser.add_argument('--resume', action='store_true')
     args = parser.parse_args(argv)
     model = numeric_policy.load(args.numeric_model, args.numeric_sha256)
     margin = model['hold_margin'] if args.hold_margin is None else args.hold_margin
-    if not math.isfinite(margin) or abs(margin) > 20:  # decide() would silently favour hold on NaN
-        raise SystemExit('--hold-margin must be finite with |value| <= 20')
+    try:  # decide() would silently favour hold on NaN
+        action_task.check_margin(margin)
+    except ValueError:
+        raise SystemExit('--hold-margin must be finite with |value| <= 20') from None
     manifest = json.loads(args.input_file.read_text())
     plan = ar.Plan(manifest, now=time.time())
     identity = ar.identity(manifest, adapter_id='', adapter_revision='', adapter_sha256='',

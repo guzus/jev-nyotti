@@ -1,0 +1,232 @@
+{
+  "task": "ACTION_V4",
+  "policy": "logistic_regression_per_state_family",
+  "artifact_sha256": "2e068dade97ca0760eec0c164c09cea5d76af921191e34646fd98c2d5f105292",
+  "family_hold_margins": {
+    "flat": -0.68,
+    "position": -0.25
+  },
+  "gate": {
+    "passed": true,
+    "criteria": {
+      "trade_detection": {
+        "value": 0.3697478991596639,
+        "threshold": 0.298050139275766,
+        "passed": true
+      },
+      "trade_rate_sanity": {
+        "value": 1.2242990654205608,
+        "threshold": [
+          0.5,
+          2
+        ],
+        "passed": true
+      },
+      "action_quality": {
+        "value": 0.1583609421149376,
+        "threshold": 0.10918918291954463,
+        "passed": true
+      },
+      "no_absorbing_state_confirmatory": {
+        "value": {
+          "opens": 39,
+          "closes": 39,
+          "time_in_position_fraction": 0.4392361111111111
+        },
+        "passed": true
+      }
+    }
+  },
+  "test_metrics": {
+    "n": 2880,
+    "teacher_trade_rate": 0.07430555555555556,
+    "predicted_trade_rate": 0.09097222222222222,
+    "trade_precision": 0.33587786259541985,
+    "trade_recall": 0.411214953271028,
+    "trade_f1": 0.3697478991596639,
+    "action_macro_f1": 0.1583609421149376,
+    "per_class": {
+      "open_long": {
+        "precision": 0.08163265306122448,
+        "recall": 0.1509433962264151,
+        "f1": 0.10596026490066224,
+        "support": 53
+      },
+      "open_short": {
+        "precision": 0.05454545454545454,
+        "recall": 0.06818181818181818,
+        "f1": 0.06060606060606061,
+        "support": 44
+      },
+      "add": {
+        "precision": 0.2777777777777778,
+        "recall": 0.14285714285714285,
+        "f1": 0.18867924528301885,
+        "support": 35
+      },
+      "reduce": {
+        "precision": 0.18333333333333332,
+        "recall": 0.3333333333333333,
+        "f1": 0.23655913978494622,
+        "support": 33
+      },
+      "close": {
+        "precision": 0.25806451612903225,
+        "recall": 0.16326530612244897,
+        "f1": 0.2,
+        "support": 49
+      }
+    },
+    "confusion": {
+      "labels": [
+        "hold",
+        "open_long",
+        "open_short",
+        "add",
+        "reduce",
+        "close"
+      ],
+      "matrix": [
+        [
+          2492,
+          87,
+          48,
+          6,
+          20,
+          13
+        ],
+        [
+          41,
+          8,
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          38,
+          3,
+          3,
+          0,
+          0,
+          0
+        ],
+        [
+          12,
+          0,
+          0,
+          5,
+          12,
+          6
+        ],
+        [
+          13,
+          0,
+          0,
+          5,
+          11,
+          4
+        ],
+        [
+          22,
+          0,
+          0,
+          2,
+          17,
+          8
+        ]
+      ],
+      "rows": "teacher",
+      "columns": "predicted"
+    },
+    "per_side": {
+      "flat": {
+        "n": 2414,
+        "teacher_trade_rate": 0.04018227009113504,
+        "predicted_trade_rate": 0.06338028169014084,
+        "trade_precision": 0.11764705882352941,
+        "trade_recall": 0.18556701030927836,
+        "trade_f1": 0.144,
+        "accuracy": 0.9084507042253521
+      },
+      "long": {
+        "n": 440,
+        "teacher_trade_rate": 0.20681818181818182,
+        "predicted_trade_rate": 0.21136363636363636,
+        "trade_precision": 0.5806451612903226,
+        "trade_recall": 0.5934065934065934,
+        "trade_f1": 0.5869565217391305,
+        "accuracy": 0.75
+      },
+      "short": {
+        "n": 26,
+        "teacher_trade_rate": 1.0,
+        "predicted_trade_rate": 0.6153846153846154,
+        "trade_precision": 1.0,
+        "trade_recall": 0.6153846153846154,
+        "trade_f1": 0.761904761904762,
+        "accuracy": 0.15384615384615385
+      }
+    }
+  },
+  "confirmatory_rollout_2026_06_24_07_24": {
+    "n_decisions": 2880,
+    "actions": {
+      "hold": 2572,
+      "open_long": 17,
+      "open_short": 22,
+      "add": 71,
+      "reduce": 159,
+      "close": 39
+    },
+    "opens": 39,
+    "closes": 39,
+    "time_in_position_fraction": 0.4392361111111111,
+    "net_return_pct": -18.089813323388938,
+    "realized_return_pct": -2.3855164483889393,
+    "fees_pct": 15.704296874999999,
+    "max_drawdown_pct": 18.68213974798727,
+    "open_at_end": false,
+    "accounting": "unit notional; realized unit returns (position_view convention) - 7.5 bps x units traded; open position marked to the close at end without a closing fee"
+  },
+  "v3_confirm_window_2026_07_24_08_23": {
+    "n_decisions": 2880,
+    "actions": {
+      "hold": 2639,
+      "open_long": 10,
+      "open_short": 13,
+      "add": 48,
+      "reduce": 147,
+      "close": 23
+    },
+    "opens": 23,
+    "closes": 23,
+    "time_in_position_fraction": 0.32916666666666666,
+    "net_return_pct": -8.158284552539698,
+    "realized_return_pct": 2.069565789257178,
+    "fees_pct": 10.227850341796877,
+    "max_drawdown_pct": 13.84465947501717,
+    "open_at_end": false,
+    "accounting": "unit notional; realized unit returns (position_view convention) - 7.5 bps x units traded; open position marked to the close at end without a closing fee"
+  },
+  "v2_window_2026_08_23_09_22": {
+    "n_decisions": 2880,
+    "actions": {
+      "hold": 2636,
+      "open_long": 19,
+      "open_short": 17,
+      "add": 53,
+      "reduce": 120,
+      "close": 35
+    },
+    "opens": 36,
+    "closes": 35,
+    "time_in_position_fraction": 0.32881944444444444,
+    "net_return_pct": -19.317564984991716,
+    "realized_return_pct": -6.812011976184383,
+    "fees_pct": 12.417626953125003,
+    "max_drawdown_pct": 20.589046121443204,
+    "open_at_end": true,
+    "accounting": "unit notional; realized unit returns (position_view convention) - 7.5 bps x units traded; open position marked to the close at end without a closing fee"
+  }
+}

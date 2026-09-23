@@ -154,6 +154,24 @@ def build_job(*, candles: list[dict], cutoff: int, position: dict, market: str, 
                 options=[dict(name=n, description=DESCRIPTIONS[n]) for n in names])
 
 
+def margin_for(margin, side: str) -> float:
+    """Hold margin for a state: a number, or {'flat': m, 'position': m} (ACTION_V4 per-family calibration)."""
+    if isinstance(margin, dict):
+        if set(margin) != {'flat', 'position'}:
+            raise ValueError('per-family hold margin requires exactly flat and position')
+        return float(margin['flat' if side == 'flat' else 'position'])
+    return float(margin)
+
+
+def check_margin(margin, limit: float = 20.0):
+    values = list(margin.values()) if isinstance(margin, dict) else [margin]
+    if isinstance(margin, dict) and set(margin) != {'flat', 'position'}:
+        raise ValueError('per-family hold margin requires exactly flat and position')
+    if not values or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or abs(v) > limit for v in values):
+        raise ValueError(f'hold margin must be finite with |value| <= {limit:g}')
+    return margin
+
+
 # Paper execution rule for replay/live (disclosed; teacher sizes are not imitated in V1).
 MAX_UNITS = 3
 

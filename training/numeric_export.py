@@ -72,7 +72,8 @@ def export_hgb(model, names) -> dict:
 
 def artifact(kind: str, families: dict, hold_margin: float, **meta) -> dict:
     model = dict(format=npol.FORMAT, version=1, kind=kind, task='ACTION_V1', prompt_revision=2,
-                 hold_margin=float(hold_margin), families=families, meta=meta)
+                 hold_margin={k: float(v) for k, v in hold_margin.items()} if isinstance(hold_margin, dict) else float(hold_margin),
+                 families=families, meta=meta)
     return npol.validate(model)
 
 
@@ -125,7 +126,7 @@ def write(path: Path, model: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--pickle', type=Path, required=True)
-    parser.add_argument('--hold-margin', type=float, required=True, help='margin frozen on validation')
+    parser.add_argument('--hold-margin', type=json.loads, required=True, help='frozen margin: number or JSON {"flat": m, "position": m}')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--note', default='', help='free-text provenance stored in meta')
     args = parser.parse_args()

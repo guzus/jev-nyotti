@@ -27,7 +27,7 @@ const actionName = z.enum(ALL_ACTIONS);
 /** ACTION_V1 closed-loop replay (training/ACTION_V1.md): one decision per 15m cutoff, paper units, fees per unit. */
 export const actionImportSchema = z.object({
   model: z.string().trim().min(1).max(300), revision: z.string().trim().min(1).max(500), task: z.literal('ACTION_V1'),
-  intervalMinutes: z.literal(15), holdMargin: z.number().finite(), policy: z.enum(['lora', 'numeric']).optional(), from: timestamp, to: timestamp,
+  intervalMinutes: z.literal(15), holdMargin: z.union([z.number().finite(), z.object({ flat: z.number().finite(), position: z.number().finite() }).strict()]), policy: z.enum(['lora', 'numeric']).optional(), from: timestamp, to: timestamp,
   source: z.string().trim().min(1).max(300), generatedAt: timestamp,
   series: z.array(z.object({
     symbol: z.string().trim().min(1).max(40),

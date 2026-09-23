@@ -36,3 +36,28 @@ Fee-inclusive PnL is reported, not gated: the V4 window, the V3 windows, and the
 **Serving:**
 - If the gate passes, V4 replaces V3 live, and the live paper book restarts (new revision).
 - If it fails, V3 stays live as it is today, and the user is told.
+
+## Measured outcome — 2026-09-23: gate PASSED, deployed
+
+[Aggregate results](ACTION_V4_RESULTS.json).
+
+| Criterion | Value | Threshold | |
+|---|---:|---:|---|
+| May trade F1 | 0.370 | > 0.298 | pass |
+| Predicted / teacher trade rate | 1.22× | 0.5–2× | pass |
+| May action macro-F1 | 0.158 | > 0.109 | pass |
+| Unseen closed loop, 2026-06-24 → 07-24 | 39 opens, 39 closes, 44 % in position | ≥ 5 / ≥ 5, 5–95 % | pass |
+
+The gate measures imitation, not profit. Fee-inclusive paper returns are still negative:
+
+| Window (BTC unless noted) | Return | V3 |
+|---|---:|---:|
+| 06-24 → 07-24 | −18.1 % | — |
+| 07-24 → 08-23 | −8.2 % | −17.2 % |
+| 08-23 → 09-22 | −19.3 % | −32.2 % |
+| 10 coins, 08-23 → 09-23 | −67.0 % | −89.8 % |
+
+Deployment:
+- Artifact sha256 `9101f3f5…`, published at HF `guzus/jev-nyotti-action@11c710b`.
+- The serving path reproduces the gate rollout's action counts exactly.
+- The live paper book restarted under the new revision.

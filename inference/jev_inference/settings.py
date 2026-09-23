@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 import os
 import re
@@ -18,13 +19,15 @@ MAX_HOLD_MARGIN = 20.0
 ACTION_POLICIES = ("lora", "numeric")
 
 
-def parse_hold_margin(raw: str | None) -> float:
-    """ACTION_HOLD_MARGIN env value; unset or blank means 0.0 (plain argmax)."""
+def parse_hold_margin(raw: str | None):
+    """ACTION_HOLD_MARGIN env value: a number, or JSON {"flat": m, "position": m}; unset means 0.0."""
     if raw is None or not raw.strip():
         return 0.0
     try:
+        if raw.strip().startswith("{"):
+            return {k: float(v) for k, v in json.loads(raw).items()}
         return float(raw)
-    except ValueError:
+    except (ValueError, TypeError, AttributeError):
         raise ValueError("ACTION_HOLD_MARGIN must be a finite number with |value| <= 20") from None
 
 
@@ -37,7 +40,7 @@ class Settings:
     adapter_revision: str | None = None
     adapter_sha256: str | None = None
     # ACTION_V1 decision rule: subtract this from the hold logit before argmax.
-    action_hold_margin: float = 0.0
+    action_hold_margin: float | dict = 0.0
     action_policy: str = "lora"
     numeric_model_path: str | None = None
     numeric_model_sha256: str | None = None
@@ -60,9 +63,11 @@ class Settings:
         if self.adapter_sha256:
             if not self.adapter_id or not re.fullmatch(r"[0-9a-f]{64}", self.adapter_sha256):
                 raise ValueError("LORA_SHA256 requires a configured adapter and its 64-character SHA-256")
-        margin = self.action_hold_margin
-        if isinstance(margin, bool) or not isinstance(margin, (int, float)) or not math.isfinite(margin) or abs(margin) > MAX_HOLD_MARGIN:
-            raise ValueError("ACTION_HOLD_MARGIN must be a finite number with |value| <= 20")
+        from .action_task import check_margin
+        try:
+            check_margin(self.action_hold_margin, MAX_HOLD_MARGIN)
+        except ValueError:
+            raise ValueError("ACTION_HOLD_MARGIN must be a finite number with |value| <= 20") from None
         if self.action_policy not in ACTION_POLICIES:
             raise ValueError("ACTION_POLICY must be lora or numeric")
         if self.action_policy == "numeric":

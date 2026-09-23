@@ -181,7 +181,7 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
             except (ValueError, UnicodeError, RecursionError, ValidationError, KeyError, TypeError):
                 return error(422, "invalid_request", "Request does not match the ACTION_V1 schema")
             names = [option.name for option in job.options]
-            margin = configuration.action_hold_margin
+            margin = action_task.margin_for(configuration.action_hold_margin, raw_job["state"]["position"]["side"])
             if numeric:
                 logps = numeric_policy.log_probs(policy_model, raw_job["state"])
                 logits = [logps[n] for n in names]

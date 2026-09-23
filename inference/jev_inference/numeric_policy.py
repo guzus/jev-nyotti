@@ -70,7 +70,7 @@ def validate(model: dict) -> dict:
         raise ValueError('unsupported numeric policy artifact')
     if model.get('task') != action_task.TASK or model.get('prompt_revision') != 2:
         raise ValueError('artifact was not fitted on ACTION_V1 prompt revision 2 features')
-    _finite([model.get('hold_margin')], 'hold_margin')
+    action_task.check_margin(model.get('hold_margin'))
     if set(model['families']) != set(OPTIONS):
         raise ValueError('artifact requires flat and position families')
     for fam, fm in model['families'].items():
