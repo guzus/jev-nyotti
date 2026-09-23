@@ -68,6 +68,8 @@ export function createActionRunner(config: Config, store: Store, actor: Actor, n
     const cutoff = actionCutoff(market);
     const inv = inventoryOf(market.symbol);
     if (inv.updatedCutoff !== null && cutoff <= inv.updatedCutoff) {
+      // The provider has not published the newer closed candle yet: retry shortly instead of logging a gap later.
+      if (now() >= (inv.updatedCutoff + ACTION_STEP_SECONDS) * 1000 + 60000) throw new ApiError(503, 'candle_not_ready', '새 15분 봉이 아직 공개되지 않았습니다. 잠시 후 다시 확인합니다.');
       // Never re-apply a cutoff. Serve the stored decision for the latest applied cutoff.
       const existing = store.getCached(decisionKey(config, market.symbol, inv.updatedCutoff));
       if (existing && 'task' in existing) return existing;

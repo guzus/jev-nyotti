@@ -9,6 +9,8 @@ import { nextActionDue } from './action.js';
 export const ACTION_REFRESH_INTERVAL_MS=900000;
 /** One bounded early retry inside the same 15m window after a failed ACTION_V1 call. */
 export const ACTION_RETRY_MS=300000;
+/** Short retry while the data provider has not yet published the just-closed candle. */
+export const ACTION_CANDLE_RETRY_MS=90000;
 
 export const REFRESH_INTERVAL_MS=600000;
 export const SCHEDULED_SYMBOLS:TradeRequest['symbol'][]=['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD','BNBUSD','SUIUSD','NEARUSD','PEPEUSD','ZECUSD'];
@@ -60,7 +62,7 @@ export function createScheduler(config:Config,store:Store,refresh:(request:Trade
           const message=error instanceof ApiError?error.message:'자동 분석을 갱신하지 못했습니다. 저장된 결과를 표시합니다.';
           store.finishSchedule(row.key,now(),null,message);
           const code=error instanceof ApiError?error.code:'';
-          if(actionMode&&!['awaiting_candle','daily_limit','action_interval_unsupported'].includes(code))store.rescheduleSooner(row.key,now()+ACTION_RETRY_MS);
+          if(actionMode&&!['awaiting_candle','daily_limit','action_interval_unsupported'].includes(code))store.rescheduleSooner(row.key,now()+(code==='candle_not_ready'?ACTION_CANDLE_RETRY_MS:ACTION_RETRY_MS));
         }
       }
     } finally {store.releaseWorker(owner);}

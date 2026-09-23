@@ -125,10 +125,11 @@ export type ActionReplayDecision = { marketAsOf: string; action: ActionName; sid
 export type ActionReplayInput = { from: string; to: string; series: { symbol: string; decisions: ActionReplayDecision[]; candles: Candle[] }[] };
 export type ActionCurvePoint = { time: string; pnlPct: number; drawdownPts: number; buyHoldPct: number };
 
-/** ACTION_V1 closed-loop replay accounting. Every 15m cutoff in [from, to) has one
- * candle and one decision; the decision executes at that candle's close through the
- * same stepPaper rule the live server uses (1 unit, add +1 max 3, reduce halves,
- * 7.5 bps per unit traded). PnL is percent of one unit notional; the portfolio line
+/** ACTION_V1 closed-loop replay accounting (format of inference/REPLAY.md). Every 15m
+ * cutoff in [from, to) has one decision and one execution candle opening at that cutoff.
+ * The decision executes at `price`, the close of the candle ending at the cutoff (so
+ * price[i] must equal candles[i-1].close), through the same stepPaper rule the live server uses (1 unit, add +1 max 3, reduce halves,
+ * 7.5 bps per unit traded), then is marked at the execution candle close. PnL is percent of one unit notional; the portfolio line
  * is the equal-weight mean of symbols. The imported sideAfter/unitsAfter chain must
  * match the rule exactly, otherwise the import fails closed. */
 export function simulateActionReplay(input: ActionReplayInput) {
@@ -139,16 +140,16 @@ export function simulateActionReplay(input: ActionReplayInput) {
   const sleeves = input.series.map(s => {
     requireValid(s.candles.length === bars && s.decisions.length === bars, `${s.symbol}: require one 15m candle and one decision per cutoff in range`);
     let position = flatPosition(), realized = 0, fees = 0, trades = 0, opens = 0, closes = 0, exposed = 0, peak = 0, maxDrawdownPts = 0;
-    const first = s.candles[0].close, points: { pnl: number; buyHold: number }[] = [];
+    const first = s.decisions[0].price, points: { pnl: number; buyHold: number }[] = [];
     s.candles.forEach((c, i) => {
-      const cutoff = c.time + ACTION_STEP_SECONDS, d = s.decisions[i];
+      const cutoff = c.time, d = s.decisions[i];
       requireValid(c.time === from + i * ACTION_STEP_SECONDS, `${s.symbol}: candles must be contiguous 15m bars`);
       requireValid(Object.values(c).every(Number.isFinite) && c.low > 0 && c.low <= Math.min(c.open, c.close) && c.high >= Math.max(c.open, c.close) && c.volume >= 0, `${s.symbol}: invalid OHLC candle`);
-      requireValid(Date.parse(d.marketAsOf) / 1000 === cutoff, `${s.symbol}: decision must sit at its candle close`);
-      requireValid(Math.abs(d.price / c.close - 1) < 1e-9, `${s.symbol}: execution price must be the cutoff candle close`);
+      requireValid(Date.parse(d.marketAsOf) / 1000 === cutoff, `${s.symbol}: execution candle must open at its decision cutoff`);
+      requireValid(d.price > 0 && (i === 0 || Math.abs(d.price / s.candles[i - 1].close - 1) < 1e-9), `${s.symbol}: execution price must be the close of the candle ending at the cutoff`);
       const allowed = optionsFor(position.side), probs = Object.entries(d.probabilities);
       requireValid(allowed.includes(d.action) && probs.length === allowed.length && probs.every(([k, v]) => allowed.includes(k as ActionName) && Number.isFinite(v) && v >= 0) && Math.abs(probs.reduce((a, [, v]) => a + v, 0) - 1) < 1e-4, `${s.symbol}: action or probabilities do not match the carried state`);
-      const step = stepPaper(position, d.action, c.close, cutoff);
+      const step = stepPaper(position, d.action, d.price, cutoff);
       requireValid(step.after.side === d.sideAfter && Math.abs(step.after.units - d.unitsAfter) < 1e-12, `${s.symbol}: decision chain does not match the paper execution rule`);
       position = step.after; realized += step.realizedPct; fees += step.feePct;
       if (step.unitsTraded > 0) trades++;

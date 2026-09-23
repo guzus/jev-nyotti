@@ -20,7 +20,7 @@ function kraken(clock:number) {
 
 test('ACTION_V1 applies each 15m cutoff once, carries the paper position and records gaps without backfill',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'jev-action-'));
-  let clock=Date.UTC(2026,8,23,0,1);
+  let clock=Date.UTC(2026,8,23,0,1),lag=0;
   const bodies:ActionRequestBody[]=[];
   const plan:Record<string,ActionName>={flat:'open_long',long:'add',short:'close'};
   const actor:Actor={configured:true,act:async body=>{
@@ -30,7 +30,7 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
     return {model:'Qwen/Qwen3.5-4B',revision,task:'ACTION_V1',action,options:names.map(name=>({name,probability:1/names.length})),holdMargin:0.5,inputTokens:900,elapsedMs:3};
   }};
   const config={...readConfig(),dataDir:dir,apiKey:key,trainingStatus:'action_v1' as const,modelRevision:revision,scheduledAnalysisEnabled:true};
-  const {app,store,scheduler}=createApp(config,{actor,market:async q=>parseKraken(kraken(clock),q,clock),now:()=>clock,
+  const {app,store,scheduler}=createApp(config,{actor,market:async q=>parseKraken(kraken(clock-lag),q,clock-lag),now:()=>clock,
     scorer:{configured:true,score:async()=>{throw Error('legacy scorer must not run in action mode');}}});
   const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));
   const address=server.address();assert.ok(address&&typeof address!=='string');
@@ -54,14 +54,18 @@ test('ACTION_V1 applies each 15m cutoff once, carries the paper position and rec
     const eth=await (await post('/api/analyze',{symbol:'ETHUSD',interval:15})).json();
     assert.equal(eth.action,'hold');assert.equal(eth.transfer,'untested_transfer');
 
-    clock+=900000;await scheduler.tick();
+    lag=120000;clock+=900000;await scheduler.tick(); // provider has not published the 00:15 candle yet
+    assert.equal(bodies.length,10,'no decision on an unpublished candle');
+    const pending=await (await fetch(base+'/api/market?symbol=BTCUSD&interval=15')).json();
+    assert.ok(pending.cache.error);assert.equal(Date.parse(pending.cache.nextRefreshAt),clock+90000);
+    lag=0;clock+=90000;await scheduler.tick();
     const second=bodies.filter(b=>b.market==='Kraken BTCUSD spot').at(-1)!;
     assert.equal(second.position.side,'long');assert.equal(second.position.entry_price,btc.candles.at(-1)!.close);
     assert.equal(second.position.last_trade_at,Date.parse(btc.cutoff)/1000);
 
     clock+=3*900000;await scheduler.tick(); // two cutoffs missed (downtime): resume from latest
     decision=await (await post('/api/analyze',{symbol:'BTCUSD',interval:15})).json();
-    assert.equal(decision.missedCutoffs,2);assert.equal(decision.paper.units,3);
+    assert.equal(decision.missedCutoffs,2);assert.equal(decision.actionLog.filter((r:{kind:string})=>r.kind==='gap').length,1,'a delayed candle is retried, not logged as a gap');assert.equal(decision.paper.units,3);
     assert.deepEqual(decision.actionLog.slice(0,2).map((r:{kind:string})=>r.kind),['action','gap'],'newest first: the gap precedes the resumed action');
     assert.equal(decision.actionLog.filter((r:{kind:string})=>r.kind==='action').length,3);
     assert.equal(bodies.filter(b=>b.market==='Kraken BTCUSD spot').length,3,'missed cutoffs are not backfilled');
