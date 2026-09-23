@@ -222,7 +222,7 @@ function App() {
   return <>
     <header className="site-header">
       <a className="brand" href="/" aria-label="jev뇨띠 홈"><BrandMark /><span className="brand-name">jev뇨띠</span></a>
-      <div className="model-chip" title={actionMode ? '페이퍼 포지션을 이어가는 15분 행동 모방 실험' : status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 실험용 LoRA' : 'Qwen3.5-4B 모델'}><span>{actionMode ? actionModel ?? 'ACTION_V1 모델' : 'Qwen3.5-4B'}</span><span className="model-chip-base">{actionMode ? 'ACTION_V1 · 15분' : status?.trainingStatus === 'fine_tuned' ? 'LoRA 학습' : status ? '기본 모델' : '연결 확인 중'}</span></div>
+      <div className="model-chip" title={actionMode ? '페이퍼 포지션을 이어가는 15분 행동 모방 실험' : status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 실험용 LoRA' : 'Qwen3.5-4B 모델'}><span className="model-chip-name">{actionMode ? actionModel ?? 'ACTION_V1 모델' : 'Qwen3.5-4B'}</span><span className="model-chip-base">{actionMode ? 'ACTION_V1 · 15분' : status?.trainingStatus === 'fine_tuned' ? 'LoRA 학습' : status ? '기본 모델' : '연결 확인 중'}</span></div>
     </header>
 
     <main>

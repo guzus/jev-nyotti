@@ -16,7 +16,7 @@ export const ACTION_LABELS: Record<ActionName, string> = {
 };
 const ACTION_ICONS = { hold: Minus, open_long: ArrowUpRight, open_short: ArrowDownLeft, add: Plus, reduce: Scissors, close: X };
 const SIDE_LABELS: Record<Side, string> = { flat: '무포지션', long: '롱', short: '숏' };
-export const ACTION_DISCLAIMER = '교육용 · 주문 실행 없음 · BTC 외 코인은 검증되지 않은 전이';
+export const ACTION_DISCLAIMER = '검증 게이트 미통과 실험 · 수수료 후 손실 예상 · 교육용 · 주문 실행 없음 · BTC 외 코인은 검증되지 않은 전이';
 const NUMERIC_KINDS: Record<string, string> = { logreg: '로지스틱 회귀', hgb: 'GBM' };
 
 /** Honest model label from the /action response identity (never a hardcoded model name). */

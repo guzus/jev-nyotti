@@ -15,7 +15,7 @@ export function ActionPerformance({ data }: { data: ActionReplayPayload }) {
   const history = data.history.filter((row) => symbol === '전체' || row.symbol === symbol);
   const trades = r.perSymbol.reduce((a, row) => a + row.trades, 0);
   return <section className="card performance" aria-label="ACTION_V1 페이퍼 재현 PnL">
-    <div className="performance-heading"><div><span className="performance-eyebrow">ACTION_V1 REPLAY</span><h2>jev뇨띠 행동 재현 PnL</h2><p>모델 자신의 페이퍼 포지션을 이어간 15분 폐루프 재현 · 1단위 명목 대비 %</p></div><span className="performance-badge">사후 재현</span></div>
+    <div className="performance-heading"><div><span className="performance-eyebrow">ACTION_V1 REPLAY</span><h2>jev뇨띠 행동 재현 PnL</h2><p>모델 자신의 페이퍼 포지션을 이어간 15분 폐루프 재현 · 1단위 명목 대비 % · 검증 게이트 미통과 실험 정책</p></div><span className="performance-badge">사후 재현</span></div>
     <div className="performance-metrics">
       <div><span>평균 손익 · 수수료 후</span><strong>{pct(r.pnlPct)}</strong></div>
       <div><span>최대 낙폭 · %p</span><strong>{r.maxDrawdownPts.toFixed(2)}</strong></div>

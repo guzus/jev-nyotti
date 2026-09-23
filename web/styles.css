@@ -48,6 +48,9 @@ h1, h2, h3, p, dl, dd { margin: 0; }
 .brand-mark { width: 30px; height: 30px; color: var(--ink); flex: 0 0 auto; }
 .brand-name { font-size: 21px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
 .model-chip { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); font-size: 12px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
+.model-chip { max-width: 62vw; min-width: 0; }
+.model-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 560px) { .model-chip-base { display: none; } }
 .model-chip-base { position: relative; padding-left: 9px; color: var(--ink-3); font-weight: 500; }
 .model-chip-base::before { content: ''; position: absolute; left: 0; top: 50%; width: 1px; height: 12px; background: var(--line-2); transform: translateY(-50%); }
 main { padding-top: 8px; padding-bottom: 32px; }

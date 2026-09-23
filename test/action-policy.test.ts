@@ -33,11 +33,13 @@ test('ACTION_INFERENCE_URL and ACTION_MODEL_* override the /score target, with f
   const base = { INFERENCE_URL: 'https://gpu.example.com/', INFERENCE_API_KEY: key, MODEL_REVISION: 'r1', MODEL_TRAINING_STATUS: 'action_v1' };
   const fallback = withEnv({ ...base, ACTION_INFERENCE_URL: undefined, ACTION_MODEL_ID: undefined, ACTION_MODEL_REVISION: undefined }, readConfig);
   assert.deepEqual(actionTarget(fallback), { url: 'https://gpu.example.com', model: 'Qwen/Qwen3.5-4B', revision: 'r1' });
-  const split = withEnv({ ...base, ACTION_INFERENCE_URL: 'https://cpu.example.com/', ACTION_MODEL_ID: numeric.model, ACTION_MODEL_REVISION: numeric.revision }, readConfig);
+  const split = withEnv({ ...base, ACTION_INFERENCE_URL: 'https://cpu.example.com/', ACTION_INFERENCE_API_KEY: key, ACTION_MODEL_ID: numeric.model, ACTION_MODEL_REVISION: numeric.revision }, readConfig);
+  assert.throws(() => withEnv({ ...base, ACTION_INFERENCE_URL: 'https://cpu.example.com/', ACTION_MODEL_ID: numeric.model, ACTION_MODEL_REVISION: numeric.revision }, readConfig), /requires ACTION_INFERENCE_API_KEY/);
+  assert.throws(() => withEnv({ ...base, ACTION_INFERENCE_URL: 'https://cpu.example.com/', ACTION_INFERENCE_API_KEY: key }, readConfig), /requires ACTION_MODEL_ID/);
   assert.deepEqual(actionTarget(split), { url: 'https://cpu.example.com', ...numeric });
   assert.equal(split.inferenceUrl, 'https://gpu.example.com');
-  assert.throws(() => withEnv({ ...base, ACTION_INFERENCE_URL: 'http://cpu.example.com' }, readConfig), /ACTION_INFERENCE_URL requires HTTPS/);
-  assert.throws(() => withEnv({ ...base, ACTION_INFERENCE_URL: 'https://x-action-cpu-api.modal.run', MODAL_PROXY_KEY: undefined, MODAL_PROXY_SECRET: undefined }, readConfig), /proxy credentials/);
+  assert.throws(() => withEnv({ ...base, ACTION_INFERENCE_URL: 'http://cpu.example.com', ACTION_MODEL_ID: numeric.model, ACTION_MODEL_REVISION: numeric.revision }, readConfig), /ACTION_INFERENCE_URL requires HTTPS/);
+  assert.throws(() => withEnv({ ...base, ACTION_INFERENCE_URL: 'https://x-action-cpu-api.modal.run', ACTION_MODEL_ID: numeric.model, ACTION_MODEL_REVISION: numeric.revision, MODAL_PROXY_KEY: undefined, MODAL_PROXY_SECRET: undefined }, readConfig), /proxy credentials/);
 });
 
 test('actor posts to the action origin; the gateway pins the reported numeric identity', async () => {

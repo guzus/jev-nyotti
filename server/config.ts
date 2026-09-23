@@ -35,7 +35,12 @@ export function readConfig() {
   const actionModalKey = process.env.ACTION_MODAL_PROXY_KEY || modalKey;
   const actionModalSecret = process.env.ACTION_MODAL_PROXY_SECRET || modalSecret;
   if (!!process.env.ACTION_MODAL_PROXY_KEY !== !!process.env.ACTION_MODAL_PROXY_SECRET) throw new Error('Both action Modal proxy credentials are required');
-  if (actionInferenceUrl) checkInferenceUrl('ACTION_INFERENCE_URL', actionInferenceUrl, actionModalKey, actionModalSecret, actionInferenceKey);
+  if (actionInferenceUrl) {
+    checkInferenceUrl('ACTION_INFERENCE_URL', actionInferenceUrl, actionModalKey, actionModalSecret, actionInferenceKey);
+    // A separate origin serves a different model: fail at boot rather than burn quota on revision mismatches.
+    if (!process.env.ACTION_MODEL_ID || !process.env.ACTION_MODEL_REVISION) throw new Error('ACTION_INFERENCE_URL requires ACTION_MODEL_ID and ACTION_MODEL_REVISION');
+    if (inferenceUrl && new URL(actionInferenceUrl).host !== new URL(inferenceUrl).host && !process.env.ACTION_INFERENCE_API_KEY) throw new Error('A separate ACTION_INFERENCE_URL host requires ACTION_INFERENCE_API_KEY');
+  }
   const actionModelId = process.env.ACTION_MODEL_ID || null;
   const actionModelRevision = process.env.ACTION_MODEL_REVISION || null;
   const trainingStatus = process.env.MODEL_TRAINING_STATUS ?? 'base';
