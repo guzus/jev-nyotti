@@ -233,7 +233,7 @@ def test_mismatched_engine_scores_fail_closed():
 
 def test_health_reports_action_margin():
     with client_for(FakeEngine(), action_hold_margin=-1.25) as client:
-        assert client.get("/healthz").json()["action"] == {"task": "ACTION_V1", "holdMargin": -1.25}
+        assert client.get("/healthz").json()["action"] == {"task": "ACTION_V1", "policy": "lora", "holdMargin": -1.25}
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), 20.0001, -21, True, "1"])

@@ -13,6 +13,9 @@ MAX_INPUT_TOKENS = 8_192
 MAX_JOBS = 8
 MAX_OPTIONS = 255
 MAX_HOLD_MARGIN = 20.0
+# /action policy: 'lora' scores Qwen (+ optional adapter); 'numeric' uses the pinned pure-Python
+# numeric artifact (numeric_policy.py) and never loads Qwen.
+ACTION_POLICIES = ("lora", "numeric")
 
 
 def parse_hold_margin(raw: str | None) -> float:
@@ -35,6 +38,9 @@ class Settings:
     adapter_sha256: str | None = None
     # ACTION_V1 decision rule: subtract this from the hold logit before argmax.
     action_hold_margin: float = 0.0
+    action_policy: str = "lora"
+    numeric_model_path: str | None = None
+    numeric_model_sha256: str | None = None
 
     def __post_init__(self) -> None:
         # Validate before model downloads or GPU work. Never include supplied values.
@@ -57,6 +63,13 @@ class Settings:
         margin = self.action_hold_margin
         if isinstance(margin, bool) or not isinstance(margin, (int, float)) or not math.isfinite(margin) or abs(margin) > MAX_HOLD_MARGIN:
             raise ValueError("ACTION_HOLD_MARGIN must be a finite number with |value| <= 20")
+        if self.action_policy not in ACTION_POLICIES:
+            raise ValueError("ACTION_POLICY must be lora or numeric")
+        if self.action_policy == "numeric":
+            if not self.numeric_model_path or not re.fullmatch(r"[0-9a-f]{64}", self.numeric_model_sha256 or ""):
+                raise ValueError("numeric ACTION_POLICY requires NUMERIC_MODEL_PATH and a 64-character NUMERIC_MODEL_SHA256")
+        elif self.numeric_model_path or self.numeric_model_sha256:
+            raise ValueError("NUMERIC_MODEL_* is only valid with ACTION_POLICY=numeric")
 
     @property
     def provenance_revision(self) -> str:
@@ -74,4 +87,7 @@ class Settings:
             adapter_revision=os.environ.get("LORA_REVISION") or None,
             adapter_sha256=os.environ.get("LORA_SHA256") or None,
             action_hold_margin=parse_hold_margin(os.environ.get("ACTION_HOLD_MARGIN")),
+            action_policy=os.environ.get("ACTION_POLICY") or "lora",
+            numeric_model_path=os.environ.get("NUMERIC_MODEL_PATH") or None,
+            numeric_model_sha256=os.environ.get("NUMERIC_MODEL_SHA256") or None,
         )

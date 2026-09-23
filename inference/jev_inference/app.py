@@ -15,7 +15,7 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from . import action_task
+from . import action_task, numeric_policy
 from .action_api import ActionOption, ActionRequest, ActionResponse, decide, job_from_request, softmax, to_scoring_job
 from .engine import Engine, InputTooLong, QwenEngine
 from .schemas import ScoreRequest, ScoreResponse
@@ -81,14 +81,24 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
     configuration = settings or Settings.from_env()
     # Dependency injection exists only as a Python argument for unit tests. There
     # is deliberately no environment variable that enables a fake production model.
-    engine = engine_factory() if engine_factory else QwenEngine(configuration)
+    numeric = configuration.action_policy == "numeric"
+    policy_model = None
+    if numeric:
+        # Hash-verified pure-Python artifact. Qwen/torch are never constructed or imported.
+        policy_model = numeric_policy.load(configuration.numeric_model_path, configuration.numeric_model_sha256)
+        if policy_model["hold_margin"] != configuration.action_hold_margin:
+            raise ValueError("ACTION_HOLD_MARGIN must equal the numeric artifact's validation-tuned hold_margin")
+    engine = None if numeric else engine_factory() if engine_factory else QwenEngine(configuration)
+    served_model = numeric_policy.model_name(policy_model) if numeric else MODEL_ID
+    served_revision = numeric_policy.revision(policy_model) if numeric else configuration.provenance_revision
     gpu_lock = asyncio.Semaphore(1)
     pending = 0
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.ready = False
-        await run_in_threadpool(engine.load)
+        if engine is not None:
+            await run_in_threadpool(engine.load)
         app.state.ready = True
         try:
             yield
@@ -107,17 +117,19 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
     async def healthz():
         return JSONResponse({
             "ready": app.state.ready,
-            "model": MODEL_ID,
-            "revision": configuration.provenance_revision,
-            "fineTuned": configuration.adapter_id is not None,
+            "model": served_model,
+            "revision": served_revision,
+            "fineTuned": configuration.adapter_id is not None and not numeric,
             "adapterVerification": getattr(engine, "adapter_verification", None),
-            "action": {"task": action_task.TASK, "holdMargin": configuration.action_hold_margin},
+            "action": {"task": action_task.TASK, "policy": configuration.action_policy, "holdMargin": configuration.action_hold_margin},
             "limits": {"jobs": MAX_JOBS, "options": MAX_OPTIONS, "inputTokensPerJob": MAX_INPUT_TOKENS, "bodyBytes": MAX_BODY_BYTES},
         }, status_code=200 if app.state.ready else 503)
 
     @app.post("/score", response_model=ScoreResponse)
     async def score(request: Request):
         nonlocal pending
+        if numeric:
+            return error(503, "not_available", "This service serves only the numeric /action policy")
         if not app.state.ready:
             return error(503, "not_ready", "Model is not ready")
         # Bound waiting work as well as active work. The gateway should retry 429
@@ -164,20 +176,31 @@ def create_app(settings: Settings | None = None, *, engine_factory: Callable[[],
             try:
                 payload = json.loads(await request.body(), parse_constant=reject_non_json_number)
                 parsed = ActionRequest.model_validate(payload)
-                job = to_scoring_job(job_from_request(parsed)[0])
+                raw_job = job_from_request(parsed)[0]
+                job = to_scoring_job(raw_job)
             except (ValueError, UnicodeError, RecursionError, ValidationError, KeyError, TypeError):
                 return error(422, "invalid_request", "Request does not match the ACTION_V1 schema")
             names = [option.name for option in job.options]
+            margin = configuration.action_hold_margin
+            if numeric:
+                logps = numeric_policy.log_probs(policy_model, raw_job["state"])
+                logits = [logps[n] for n in names]
+                return ActionResponse(
+                    model=served_model, policy="numeric", revision=served_revision, task=action_task.TASK,
+                    action=decide(names, logits, margin),
+                    options=[ActionOption(name=n, probability=p) for n, p in zip(names, softmax(logits))],
+                    holdMargin=margin, inputTokens=0, elapsedMs=round((time.perf_counter() - started) * 1000, 3),
+                )
             async with gpu_lock:
                 prepared = await run_in_threadpool(engine.prepare, [job])
                 scores = await run_in_threadpool(engine.score, prepared)
             if len(scores) != 1 or len(scores[0].logits) != len(names):
                 raise RuntimeError("engine returned mismatched scores")
             logits = scores[0].logits
-            margin = configuration.action_hold_margin
             chosen = decide(names, logits, margin)
             return ActionResponse(
                 model=MODEL_ID,
+                policy="lora",
                 revision=configuration.provenance_revision,
                 task=action_task.TASK,
                 action=chosen,

@@ -59,12 +59,13 @@ class ActionOption(StrictModel):
 
 class ActionResponse(StrictModel):
     model: str
+    policy: Literal["lora", "numeric"]
     revision: str
     task: Literal["ACTION_V1"]
     action: str
     options: list[ActionOption]
     holdMargin: float
-    inputTokens: int
+    inputTokens: Annotated[int, Field(ge=0)]  # 0 for the numeric policy (no tokenizer)
     elapsedMs: float
 
 
