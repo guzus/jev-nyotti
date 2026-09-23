@@ -31,6 +31,11 @@ TRAIN_WALL_SECONDS = 900  # hard cap on the optimizer loop
 MIN_STEPS = 10
 
 # Budget: worker timeout + fixed startup/teardown overhead at a conservative H100 rate.
+# Pinned-tokenizer prompt lengths (dataset 50b21d673c9f084d): 1,313-1,440 tokens, mean ~1,385.
+# Planning estimate: load/imports ~90 s, base val+test scoring (5,664 rows, 7.8M tokens,
+# batched) ~200-300 s, training <=900 s (600 steps ~0.6-0.9 s), LoRA scoring ~200-300 s,
+# sequential rollout (2,880 forwards) ~200-300 s, export+reload ~120 s: ~1,300-1,600 s of
+# the 1,800 s worker. Training is shortened automatically if measured scoring is slower.
 RATE_USD_PER_SECOND = 0.0013
 OVERHEAD_SECONDS = 300
 MAX_SECONDS = 1800
@@ -181,7 +186,7 @@ def encode_prompt(tokenizer, labels, job_dict: dict, max_length: int = MAX_LENGT
             'names': [o.name for o in job.options]}
 
 
-def make_batches(lengths: list[int], max_batch: int = 8, max_spread: int = 192) -> list[list[int]]:
+def make_batches(lengths: list[int], max_batch: int = 16, max_spread: int = 192) -> list[list[int]]:
     """Length-sorted right-padded batches; a small spread keeps the kept-logit window small."""
     order = sorted(range(len(lengths)), key=lambda i: (lengths[i], i))
     batches, current = [], []
