@@ -2,9 +2,11 @@
 
 Format and scoring: inference/jev_inference/numeric_policy.py (the serving side never imports sklearn).
 
-  python training/numeric_export.py --pickle .runtime/action-v3-model.pkl --hold-margin M \
+  python training/numeric_export.py --pickle .runtime/action-v3-model.pkl --hold-margin 0.1 \
       --out .runtime/numeric-policy.json
-prints the artifact SHA-256 to pin in inference/jev_inference/deployment.py.
+prints the artifact SHA-256 to pin in inference/jev_inference/deployment.py. The hold margin must be
+the one frozen for that model (ACTION_V3: 0.10, training/ACTION_V3_RESULTS.json "margin").
+Before writing, `verify` re-checks the artifact against sklearn predict_proba on random inputs.
 The pickle is an `action_baseline.Baseline` (models[family] = (StandardScaler, LogisticRegression, names))
 or a dict {family: (scaler_or_None, HistGradientBoostingClassifier, names)}.
 """
@@ -86,6 +88,34 @@ def from_models(models: dict, hold_margin: float, **meta) -> dict:
     raise ValueError(f'unsupported model types {sorted(kinds)}')
 
 
+def verify(models: dict, model: dict, n: int = 300, seed: int = 0) -> float:
+    """Refuse an artifact whose pure-Python probabilities differ from sklearn predict_proba.
+
+    Catches non-softmax models (liblinear/OvR), sklearn private-attribute drift and pickle changes.
+    """
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    tol = 1e-9 if model['kind'] == 'logreg' else 1e-6
+    worst = 0.0
+    for fam, (scaler, sk, names) in models.items():
+        fm = model['families'][fam]
+        centre = np.array(fm['mean']) if model['kind'] == 'logreg' else np.zeros(fm['n_features'])
+        spread = np.array(fm['scale']) if model['kind'] == 'logreg' else np.full(fm['n_features'], 3.0)
+        X = centre + spread * rng.standard_normal((n, fm['n_features']))
+        with np.errstate(all='ignore'):  # macOS Accelerate emits spurious matmul warnings; parity is checked below
+            ref = sk.predict_proba(scaler.transform(X) if scaler is not None else X)
+        for x, row in zip(X, ref):
+            raw = npol.raw_scores(fm, model['kind'], [float(v) for v in x])
+            top = max(raw)
+            z = math.fsum(math.exp(v - top) for v in raw)
+            ours = {c: math.exp(v - top) / z for c, v in zip(fm['classes'], raw)}
+            for c, p in zip(sk.classes_, row):
+                worst = max(worst, abs(ours[names[int(c)]] - float(p)))
+    if worst > tol:
+        raise ValueError(f'exported artifact disagrees with sklearn predict_proba (max {worst:.3g} > {tol})')
+    return worst
+
+
 def write(path: Path, model: dict) -> str:
     data = (json.dumps(model, allow_nan=False, sort_keys=True) + '\n').encode()
     path.write_bytes(data)
@@ -104,10 +134,13 @@ def main() -> None:
     import action_baseline  # noqa: F401  (pickle resolves the Baseline class through this module)
     loaded = pickle.loads(args.pickle.read_bytes())  # local trusted training output only
     models = loaded.models if hasattr(loaded, 'models') else loaded
-    model = from_models(models, args.hold_margin, source=args.pickle.name, note=args.note)
+    model = from_models(models, args.hold_margin, source=args.pickle.name, note=args.note,
+                        source_sha256=hashlib.sha256(args.pickle.read_bytes()).hexdigest())
+    worst = verify(models, model)
     sha = write(args.out, model)
     npol.load(str(args.out), sha)  # round-trip through the serving loader
-    print(json.dumps(dict(out=str(args.out), kind=model['kind'], sha256=sha, hold_margin=model['hold_margin'])))
+    print(json.dumps(dict(out=str(args.out), kind=model['kind'], sha256=sha, hold_margin=model['hold_margin'],
+                          max_prob_diff_vs_sklearn=worst)))
 
 
 if __name__ == '__main__':

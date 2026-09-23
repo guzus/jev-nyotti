@@ -71,7 +71,9 @@ class NumericExportParity(unittest.TestCase):
         models = fit(kind, self.train)
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'm.json'
-            sha = ne.write(path, ne.from_models(models, 0.25, note='test'))
+            exported = ne.from_models(models, 0.25, note='test')
+            self.assertLessEqual(ne.verify(models, exported), tol)
+            sha = ne.write(path, exported)
             loaded = npol.load(str(path), sha)
             with self.assertRaises(ValueError):
                 npol.load(str(path), '0' * 64)
@@ -110,6 +112,16 @@ class NumericExportParity(unittest.TestCase):
         model = LogisticRegression(max_iter=5000).fit(StandardScaler().fit_transform(X), y)
         with self.assertRaises(ValueError):
             ne.export_logreg(None, model, at.FLAT_OPTIONS)
+
+    def test_verify_refuses_non_softmax_model(self):
+        models = fit('logreg', self.train)
+        scaler, _, names = models['flat']
+        X = np.array([npol.feature_vector(s) for s in self.train if s['position']['side'] == 'flat'])
+        y = np.arange(len(X)) % 3
+        ovr = LogisticRegression(solver='liblinear').fit(scaler.transform(X), y)  # one-vs-rest probabilities
+        models['flat'] = (scaler, ovr, names)
+        with self.assertRaises(ValueError):
+            ne.verify(models, ne.from_models(models, 0.0))
 
     def test_nonfinite_artifact_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -201,7 +201,7 @@ the artifact's `hold_margin`.
 ```sh
 # 1. Export (the training venv has sklearn). Prints the artifact sha256.
 .runtime/action-venv/bin/python training/numeric_export.py \
-  --pickle .runtime/action-v3-model.pkl --hold-margin M --out .runtime/numeric-policy.json
+  --pickle .runtime/action-v3-model.pkl --hold-margin 0.1 --out .runtime/numeric-policy.json
 # 2. Pin sha256 and hold margin in jev_inference/deployment.py NUMERIC_SERVING, then commit.
 # 3. Replay locally on CPU (same output format as the Modal replay):
 inference/.venv/bin/python inference/action_replay_local.py --input-file IN.json --out-dir OUT \

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -33,6 +34,8 @@ def main(argv: list[str] | None = None) -> dict:
     args = parser.parse_args(argv)
     model = numeric_policy.load(args.numeric_model, args.numeric_sha256)
     margin = model['hold_margin'] if args.hold_margin is None else args.hold_margin
+    if not math.isfinite(margin) or abs(margin) > 20:  # decide() would silently favour hold on NaN
+        raise SystemExit('--hold-margin must be finite with |value| <= 20')
     manifest = json.loads(args.input_file.read_text())
     plan = ar.Plan(manifest, now=time.time())
     identity = ar.identity(manifest, adapter_id='', adapter_revision='', adapter_sha256='',

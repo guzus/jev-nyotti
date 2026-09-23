@@ -35,7 +35,16 @@ def test_invalid_entries_fail_before_deploy(monkeypatch):
             deployment.image_env(name)
 
 
+def test_live_numeric_pins_are_valid_when_set():
+    for name, entry in deployment.NUMERIC_SERVING.items():
+        if entry["numeric_model_sha256"] is not None or entry["action_hold_margin"] is not None:
+            env = deployment.numeric_image_env(name)  # both pins set, 64-hex sha, finite margin
+            assert env["NUMERIC_MODEL_SHA256"] == entry["numeric_model_sha256"]
+
+
 def test_numeric_cpu_app_refuses_until_pinned(monkeypatch):
+    monkeypatch.setitem(deployment.NUMERIC_SERVING, "jev-nyotti-action-cpu",
+                        dict(numeric_model_sha256=None, action_hold_margin=None))
     with pytest.raises(ValueError, match="pin numeric_model_sha256"):
         deployment.numeric_image_env("jev-nyotti-action-cpu")
     monkeypatch.setitem(deployment.NUMERIC_SERVING, "jev-nyotti-action-cpu",
