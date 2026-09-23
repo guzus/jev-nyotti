@@ -118,10 +118,31 @@ class Plan:
 
 
 def identity(manifest: dict, *, adapter_id: str, adapter_revision: str, adapter_sha256: str,
-             base_revision: str, hold_margin: float) -> str:
-    return fingerprint(dict(input=manifest, task=action_task.TASK, contractSha256=CONTRACT_SHA256,
-                            adapter=dict(id=adapter_id, revision=adapter_revision, sha256=adapter_sha256),
-                            baseRevision=base_revision, holdMargin=hold_margin))
+             base_revision: str, hold_margin: float, policy: str = "lora", numeric_sha256: str | None = None) -> str:
+    fields = dict(input=manifest, task=action_task.TASK, contractSha256=CONTRACT_SHA256,
+                  adapter=dict(id=adapter_id, revision=adapter_revision, sha256=adapter_sha256),
+                  baseRevision=base_revision, holdMargin=hold_margin)
+    if policy != "lora":  # lora identities stay unchanged so existing checkpoints still resume
+        fields.update(policy=policy, numericSha256=numeric_sha256)
+    return fingerprint(fields)
+
+
+def numeric_scorer(model: dict) -> "Scorer":
+    """ACTION_POLICY=numeric replay scorer: the same numeric_policy.log_probs used by live /action."""
+    from . import numeric_policy
+
+    def score(jobs: list[dict]) -> list:
+        out = []
+        for job in jobs:
+            logps = numeric_policy.log_probs(model, job["state"])
+            out.append(NumericScore(logits=[logps[o["name"]] for o in job["options"]], inputTokens=0))
+        return out
+    return score
+
+
+class NumericScore:
+    def __init__(self, logits: list[float], inputTokens: int):
+        self.logits, self.inputTokens = logits, inputTokens
 
 
 def new_state(run_identity: str) -> dict:
@@ -198,9 +219,10 @@ def run(plan: Plan, state: dict, score: Scorer, margin: float, *, max_decisions:
     return calls
 
 
-def output(plan: Plan, state: dict, *, model: str, revision: str, margin: float, generated_at: float) -> dict:
+def output(plan: Plan, state: dict, *, model: str, revision: str, margin: float, generated_at: float,
+           policy: str = "lora") -> dict:
     completed_end = plan.start + state["completedCutoffs"] * STEP
-    result = dict(model=model, revision=revision, task=action_task.TASK, intervalMinutes=action_task.INTERVAL_MINUTES,
+    result = dict(model=model, policy=policy, revision=revision, task=action_task.TASK, intervalMinutes=action_task.INTERVAL_MINUTES,
                   holdMargin=margin, **{"from": iso(plan.start), "to": iso(completed_end)}, source=plan.source,
                   generatedAt=iso(generated_at), series=[])
     for symbol in plan.symbols:

@@ -3,6 +3,8 @@
 modal run inference/modal_action_replay.py --input-file IN.json --run-id ID --budget-usd 1 \
   --adapter-id OWNER/REPO --adapter-revision SHA40 --adapter-sha256 SHA64 --hold-margin M
 Pure logic lives in jev_inference/action_replay.py; this file owns budget, watchdog and volume I/O.
+Policy 'lora' only (the GPU policy). ACTION_POLICY=numeric replays run locally on CPU with the same
+output format: inference/action_replay_local.py (never pay for an H100 to run a JSON model).
 """
 import json
 import re
@@ -113,8 +115,11 @@ def run(run_id: str, budget_usd: float, max_decisions: int, adapter_id: str, ada
 
 @app.local_entrypoint()
 def main(input_file: str, run_id: str, budget_usd: float, adapter_id: str = '', adapter_revision: str = '',
-         adapter_sha256: str = '', hold_margin: float = 0.0, max_decisions: int = 30, resume: bool = False):
+         adapter_sha256: str = '', hold_margin: float = 0.0, max_decisions: int = 30, resume: bool = False,
+         policy: str = 'lora'):
     from jev_inference import action_replay as ar
+    if policy != 'lora':
+        raise SystemExit('only --policy lora runs on Modal; use inference/action_replay_local.py for numeric')
     if not RUN_ID.fullmatch(run_id) or max_decisions < 1:
         raise ValueError('invalid run ID or max decisions')
     ar.budget_seconds(budget_usd, RATE_USD_SECOND, RESERVE_SECONDS)
