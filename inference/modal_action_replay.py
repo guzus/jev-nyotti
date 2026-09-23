@@ -51,7 +51,6 @@ def run(run_id: str, budget_usd: float, max_decisions: int, adapter_id: str, ada
     from jev_inference.engine import QwenEngine
     from jev_inference.settings import MODEL_ID
     from jev_inference.replay import iso
-    from jev_inference.replay_batch import ReplayBatchScorer
     if not RUN_ID.fullmatch(run_id) or max_decisions < 1:
         raise ValueError('invalid run ID or max decisions')
     started = time.monotonic()
@@ -73,12 +72,13 @@ def run(run_id: str, budget_usd: float, max_decisions: int, adapter_id: str, ada
     ar.restore_positions(plan, state, hold_margin)  # fail before loading the model
     engine = QwenEngine(settings)
     engine.load()
-    batch_scorer = ReplayBatchScorer()
     durations: list[float] = []
 
     def score(jobs):
         tick = time.monotonic()
-        scores = batch_scorer.score(engine, engine.prepare([to_scoring_job(j) for j in jobs]))
+        # Serial engine scoring: identical to live /action (batched padding could flip near-ties and
+        # then change every later carried position of a stateful replay).
+        scores = engine.score(engine.prepare([to_scoring_job(j) for j in jobs]))
         durations.append(time.monotonic() - tick)
         return scores
 
@@ -96,11 +96,11 @@ def run(run_id: str, budget_usd: float, max_decisions: int, adapter_id: str, ada
             completedDecisions=len(state['records']), completedCutoffs=state['completedCutoffs'],
             marketThrough=output['to'], elapsedSeconds=time.monotonic() - started, reservedBudgetUsd=budget_usd,
             conservativeRateUsdSecond=RATE_USD_SECOND, identity=identity, contractSha256=ar.CONTRACT_SHA256,
-            batchGate=batch_scorer.gate)))
+            scoring='serial')))
         results.commit()
         if state['completedCutoffs'] % 50 == 1:
             print(json.dumps(dict(completedDecisions=len(state['records']), marketThrough=output['to'],
-                                  batchGate=batch_scorer.gate, generatedAt=iso(time.time()))), flush=True)
+                                  scoring='serial', generatedAt=iso(time.time()))), flush=True)
 
     calls = ar.run(plan, state, score, hold_margin, max_decisions=max_decisions,
                    may_continue=may_continue, on_cutoff=save)
