@@ -78,10 +78,10 @@ def epoch(value: str) -> int:
     return int(timestamp(value))
 
 
-def split_for(cutoff: int) -> str | None:
+def split_for(cutoff: int, splits=None) -> str | None:
     if cutoff % STEP:
         raise ValueError('cutoff must be a 15-minute boundary')
-    for name, start, end in SPLITS:
+    for name, start, end in (splits or SPLITS):
         if epoch(start) <= cutoff and cutoff + STEP <= epoch(end):
             return name
     return None
@@ -302,7 +302,8 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
             handle.write(json.dumps(row, separators=(',', ':'), allow_nan=False) + '\n')
 
 
-def build(source: Path, snapshot: Path, output: Path, fresh: Path | None = None) -> dict:
+def build(source: Path, snapshot: Path, output: Path, fresh: Path | None = None, splits=None) -> dict:
+    splits = [tuple(x) for x in (splits or SPLITS)]
     if output.exists():
         raise ValueError(f'{output} already exists; refusing to overwrite')
     paths = sorted(source.glob('aoa-execution-*.csv'))
@@ -313,7 +314,7 @@ def build(source: Path, snapshot: Path, output: Path, fresh: Path | None = None)
     index = {c['time']: i for i, c in enumerate(candles)}
     times, positions, reconciliation = read_positions(paths)
     fills, event_counts = read_fills(paths)
-    start, end = epoch(SPLITS[0][1]), epoch(SPLITS[-1][2])
+    start, end = epoch(splits[0][1]), epoch(splits[-1][2])
     reconciliation['trade_path_check'] = check_position_path(fills, times, positions, end)
     reconciliation['xbtusd_event_counts'] = dict(event_counts)
 
@@ -325,10 +326,10 @@ def build(source: Path, snapshot: Path, output: Path, fresh: Path | None = None)
 
     windows = label_windows(fills, candles, start, end)
     rng = random.Random(SEED)
-    groups: dict[str, list[dict]] = {name: [] for name, _, _ in SPLITS}
+    groups: dict[str, list[dict]] = {name: [] for name, _, _ in splits}
     diagnostics = Counter()
     for w in windows:
-        split = split_for(w['cutoff'])
+        split = split_for(w['cutoff'], splits)
         if split is None:
             continue
         diagnostics[f'{split}:eligible'] += 1
@@ -345,10 +346,10 @@ def build(source: Path, snapshot: Path, output: Path, fresh: Path | None = None)
                       'provenance': 'user_supplied_aoa_execution_export',
                       'source_files': [{'name': p.name, 'bytes': p.stat().st_size, 'sha256': sha256(p)} for p in paths],
                       'market_snapshot': market_evidence, 'candles_15m': len(candles), 'rules': RULES,
-                      'seed': SEED, 'holds_per_action': HOLDS_PER_ACTION, 'reconciliation': reconciliation,
+                      'splits_used': splits, 'seed': SEED, 'holds_per_action': HOLDS_PER_ACTION, 'reconciliation': reconciliation,
                       'march_frozen_count_check': march_check, 'splits': {}, 'files': {}}
     try:
-        for name, first, last in SPLITS:
+        for name, first, last in splits:
             natural = groups[name]
             chosen = select_train(natural, rng) if name == 'train' else natural
             rows = [make_row(w, candles, index, name, rng if name == 'train' else None) for w in chosen]
@@ -402,9 +403,10 @@ def main() -> None:
     parser.add_argument('--source', type=Path, default=DEFAULT_SOURCE)
     parser.add_argument('--snapshot', type=Path, default=DEFAULT_SNAPSHOT)
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument('--splits', type=json.loads, help='JSON [[name, start, end], ...] (default: ACTION_V1 months)')
     parser.add_argument('--fresh-rollout', type=Path, help='action-replay-input.json with one BTCUSD series')
     args = parser.parse_args()
-    manifest = build(args.source, args.snapshot, args.output, args.fresh_rollout)
+    manifest = build(args.source, args.snapshot, args.output, args.fresh_rollout, args.splits)
     print(json.dumps({k: manifest[k] for k in ('dataset_id', 'excluded_ambiguous_total', 'march_frozen_count_check')}
                      | {'splits': {k: {'written': v['written'], 'natural': v['natural']['by_action'],
                                        'excluded_ambiguous': v['excluded_ambiguous']} for k, v in manifest['splits'].items()}},
