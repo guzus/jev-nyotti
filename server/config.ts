@@ -30,7 +30,12 @@ export function readConfig() {
   // ACTION_V1 may be served by a separate origin (e.g. the CPU numeric app) with its own pinned identity.
   // Unset values fall back to INFERENCE_URL / MODEL_ID / MODEL_REVISION (see actionTarget).
   const actionInferenceUrl = (process.env.ACTION_INFERENCE_URL ?? '').replace(/\/$/, '') || null;
-  if (actionInferenceUrl) checkInferenceUrl('ACTION_INFERENCE_URL', actionInferenceUrl, modalKey, modalSecret, inferenceKey);
+  // The action origin may live in a different Modal workspace: its own bearer key and proxy token pair.
+  const actionInferenceKey = process.env.ACTION_INFERENCE_API_KEY || inferenceKey;
+  const actionModalKey = process.env.ACTION_MODAL_PROXY_KEY || modalKey;
+  const actionModalSecret = process.env.ACTION_MODAL_PROXY_SECRET || modalSecret;
+  if (!!process.env.ACTION_MODAL_PROXY_KEY !== !!process.env.ACTION_MODAL_PROXY_SECRET) throw new Error('Both action Modal proxy credentials are required');
+  if (actionInferenceUrl) checkInferenceUrl('ACTION_INFERENCE_URL', actionInferenceUrl, actionModalKey, actionModalSecret, actionInferenceKey);
   const actionModelId = process.env.ACTION_MODEL_ID || null;
   const actionModelRevision = process.env.ACTION_MODEL_REVISION || null;
   const trainingStatus = process.env.MODEL_TRAINING_STATUS ?? 'base';
@@ -45,7 +50,7 @@ export function readConfig() {
   return {
     gaMeasurementId:gaMeasurementId||null,scheduledAnalysisEnabled:scheduled==='true',
     port: integer('PORT', 3000, 1, 65535), dataDir: resolve(process.env.DATA_DIR ?? '.runtime'),
-    apiKey, inferenceUrl, actionInferenceUrl, actionModelId, actionModelRevision, inferenceKey, modalKey, modalSecret, modelId, modelRevision, trainingStatus: trainingStatus as TrainingStatus,
+    apiKey, inferenceUrl, actionInferenceUrl, actionInferenceKey, actionModalKey, actionModalSecret, actionModelId, actionModelRevision, inferenceKey, modalKey, modalSecret, modelId, modelRevision, trainingStatus: trainingStatus as TrainingStatus,
     dailyLimit: integer('MAX_DAILY_EVALUATIONS', 300, 1, 10000),
     publicRate: integer('PUBLIC_REQUESTS_PER_MINUTE', 6, 1, 60),
     inferenceTimeout: integer('INFERENCE_TIMEOUT_MS', 120000, 1000, 300000),

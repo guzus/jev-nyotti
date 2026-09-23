@@ -64,8 +64,8 @@ export function createActor(config:Config):Actor {
       if (!target) throw new ApiError(503,'model_unconfigured','모델 서버 연결을 준비하고 있습니다. 시장 데이터는 확인할 수 있습니다.');
       try {
         const response=await fetch(`${target}/action`,{
-          method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.inferenceKey}`,
-            ...(config.modalKey?{'Modal-Key':config.modalKey,'Modal-Secret':config.modalSecret}:{})},
+          method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.actionInferenceKey}`,
+            ...(config.actionModalKey?{'Modal-Key':config.actionModalKey,'Modal-Secret':config.actionModalSecret}:{})},
           body:JSON.stringify(body),signal:AbortSignal.timeout(config.inferenceTimeout),redirect:'error',
         });
         if (!response.ok) {

@@ -29,7 +29,8 @@ SERVING = {
 
 # Numeric policy apps: set both pins from `training/numeric_export.py` output before deploying.
 NUMERIC_SERVING = {
-    'jev-nyotti-action-cpu': dict(numeric_model_sha256=None, action_hold_margin=None),
+    # ACTION_V3 logistic regression (training/ACTION_V3.md; gate FAILED, served as a labelled experiment by user decision).
+    'jev-nyotti-action-cpu': dict(numeric_model_sha256='2e068dade97ca0760eec0c164c09cea5d76af921191e34646fd98c2d5f105292', action_hold_margin=0.1),
 }
 NUMERIC_MODEL_REMOTE_PATH = '/opt/model/numeric_policy.json'
 
