@@ -45,7 +45,13 @@ Use `Qwen/Qwen3.5-4B` as the client model. This preserves TypeSafe's wire format
 - `MODEL_TRAINING_STATUS=action_v1` switches to the [ACTION_V1](training/ACTION_V1.md) stateful mode. It makes one 15-minute paper action per coin (관망/롱 진입/숏 진입/추가/축소/청산) from a carried SQLite paper position. Each cutoff is applied once and never backfilled. Fees are 7.5 bps per unit. BTC is in-distribution; the other coins are untested transfer. No orders are executed. See [API semantics](docs/api.md#action_v1-stateful-mode).
 - Scheduled production cap: 5,000 classification questions/day, shared with authenticated `/v1/systemone` requests. Failed model calls also consume quota. Thirty scheduled checks every ten minutes yield at most 4,320 checks/day; unchanged candles skip inference (normally about 1,260 new snapshots/day across these intervals). HTTP reads have separate rate limits. This is **not a dollar spending cap**; GPU idle time, CPU/memory and storage also consume credit, and Railway billing is separate.
 
-**Stateful action model (2026-09-23):** [ACTION_V1](training/ACTION_V1.md) and [ACTION_V2](training/ACTION_V2.md) both failed their pre-registered gates, so the `action_v1` server mode, `/action` endpoint and stateful replay are shipped but **not active**. Production still serves the model above.
+**Live action mode (2026-09-23):** the site runs `MODEL_TRAINING_STATUS=action_v1`.
+- Every 15 minutes a **numeric logistic-regression policy** ([ACTION_V3](training/ACTION_V3.md), [HF](https://huggingface.co/guzus/jev-nyotti-action)) chooses hold / open / add / reduce / close for each coin.
+- Each coin carries its own paper position.
+- It is served from a CPU Modal app. It is **not Qwen**.
+- It **failed its pre-registered gate**: it over-trades, and its fee-inclusive paper replay is −89.8 % over 30 days across 10 coins.
+- It is shown as a labelled experiment by owner decision.
+- The Qwen LoRA attempts ([V1](training/ACTION_V1.md), [V2](training/ACTION_V2.md)) failed too. Qwen still serves `/v1/systemone`.
 
 [Training: real-data pilot and rehearsal](training/README.md) · [Deployment and recovery](docs/deployment.md) · [Inference service](inference/README.md) · [Future dataset/evaluation plan](docs/experiment.md)
 
