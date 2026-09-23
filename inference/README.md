@@ -183,11 +183,36 @@ The prompt is built only by `jev_inference/action_task.build_job`
 `cutoff` is a UTC 15-minute boundary, not in the future. `candles` are exactly 96
 closed 15-minute candles, `time` = candle OPEN epoch seconds, the last one opening at
 `cutoff - 900`. Position times are epoch seconds and must not be after the cutoff.
-Response: `{model, revision, task: "ACTION_V1", action, options: [{name, probability}],
-holdMargin, inputTokens, elapsedMs}`. `action = argmax(logits + b)`, where `b`
+Response: `{model, policy, revision, task: "ACTION_V1", action, options: [{name, probability}],
+holdMargin, inputTokens, elapsedMs}` (`policy` is `lora` or `numeric`). `action = argmax(logits + b)`, where `b`
 subtracts `ACTION_HOLD_MARGIN` (deployment config, `jev_inference/deployment.py`) from
 `hold` only; `probability` is the softmax of the raw logits. The caller owns the
 position state. The stateful historical replay is `modal_action_replay.py` (see REPLAY.md).
+
+### Numeric policy (`ACTION_POLICY=numeric`, CPU, not Qwen)
+
+`jev_inference/numeric_policy.py` scores a per-state-family logistic regression or
+HistGradientBoosting model from a SHA-256-pinned JSON artifact in pure Python. It uses the
+same `build_job` state; `feature_vector` is the only feature definition. In this mode Qwen is
+never constructed, `/score` returns 503, `inputTokens` is 0, `model` is `jev-numeric/<kind>`,
+and `revision` is `numeric-<kind>:sha256:<artifact sha>`. `ACTION_HOLD_MARGIN` must equal
+the artifact's `hold_margin`.
+
+```sh
+# 1. Export (the training venv has sklearn). Prints the artifact sha256.
+.runtime/action-venv/bin/python training/numeric_export.py \
+  --pickle .runtime/action-v3-model.pkl --hold-margin M --out .runtime/numeric-policy.json
+# 2. Pin sha256 and hold margin in jev_inference/deployment.py NUMERIC_SERVING, then commit.
+# 3. Replay locally on CPU (same output format as the Modal replay):
+inference/.venv/bin/python inference/action_replay_local.py --input-file IN.json --out-dir OUT \
+  --numeric-model .runtime/numeric-policy.json --numeric-sha256 SHA
+# 4. Deploy the CPU app (refuses when the file hash differs from the pin):
+JEV_NUMERIC_MODEL_FILE=$PWD/.runtime/numeric-policy.json modal deploy inference/modal_action_cpu.py
+```
+
+Gateway: set `ACTION_INFERENCE_URL` to the CPU app URL. Set `ACTION_MODEL_ID=jev-numeric/<kind>`
+and `ACTION_MODEL_REVISION=numeric-<kind>:sha256:<sha>`. `/score` keeps `INFERENCE_URL`. A new
+action revision starts a fresh paper book.
 
 ## Loading another LoRA
 
