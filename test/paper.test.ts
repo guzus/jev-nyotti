@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { applyAction, flatPosition, optionsFor, stepPaper, unrealizedPct, type ActionName, type PaperPosition } from '../server/paper.js';
 
-const python=process.env.ACTION_PYTHON??resolve(import.meta.dirname,'../../../../.runtime/action-venv/bin/python');
+const python=process.env.ACTION_PYTHON??[resolve(import.meta.dirname,'../.runtime/action-venv/bin/python'),resolve(import.meta.dirname,'../../../../.runtime/action-venv/bin/python')].find(p=>existsSync(p))??'';
 const pythonBin=existsSync(python)?python:null;
 
 // Scripted sequence covering every transition, including add at MAX_UNITS and repeated reduce.

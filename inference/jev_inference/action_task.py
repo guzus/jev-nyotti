@@ -1,10 +1,11 @@
-"""ACTION_V1 shared prompt contract. Pure stdlib: used by dataset, replay and (ported) server.
+"""ACTION_V1 shared prompt contract. Pure stdlib: the only prompt builder for dataset,
+training, replay and the live /action endpoint (the Node server sends raw candles).
 
 Decision every 15 minutes at a UTC boundary. Input is 96 closed 15-minute candles
 ending exactly at the cutoff plus the carried paper/teacher position state. Every
 market quantity is unit-free (returns and relative volume) so BitMEX contract
-volume and Kraken base volume are comparable. `server/action-task.ts` must produce
-byte-identical JSON for `test/fixtures/action-task-golden.json`.
+volume and Kraken base volume are comparable. `server/paper.ts` ports only
+apply_action and is parity-tested against this file.
 """
 from __future__ import annotations
 
