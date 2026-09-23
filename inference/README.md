@@ -176,7 +176,7 @@ The prompt is built only by `jev_inference/action_task.build_job`
 
 ```json
 {"market": "BitMEX XBTUSD", "cutoff": "2026-09-20T00:00:00Z",
- "candles": [{"time": 1758239100, "open": 1, "high": 1, "low": 1, "close": 1, "volume": 0}],
+ "candles": ["...95 earlier candles...", {"time": 1789861500, "open": 1, "high": 1, "low": 1, "close": 1, "volume": 0}],
  "position": {"side": "flat", "entry_price": null, "opened_at": null, "last_trade_at": null}}
 ```
 
