@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ACTION_DISCLAIMER, ACTION_LABELS } from './action.js';
+import { ACTION_LABELS, actionDisclaimer } from './action.js';
+import { PNL_UNITS, policyInfo } from './policy-info.js';
 
 type Report = ReturnType<typeof import('../server/pnl.js').simulateActionReplay>;
 type Row = { symbol: string; marketAsOf: string; action: keyof typeof ACTION_LABELS; sideAfter: 'flat' | 'long' | 'short'; unitsAfter: number; price: number };
@@ -14,12 +15,14 @@ export function ActionPerformance({ data }: { data: ActionReplayPayload }) {
   const r = data.report, first = r.curve[0], last = r.curve.at(-1)!;
   const history = data.history.filter((row) => symbol === '전체' || row.symbol === symbol);
   const trades = r.perSymbol.reduce((a, row) => a + row.trades, 0);
-  return <section className="card performance" aria-label="ACTION_V1 페이퍼 재현 PnL">
-    <div className="performance-heading"><div><span className="performance-eyebrow">ACTION_V1 REPLAY</span><h2>jev뇨띠 행동 재현 PnL</h2><p>모델 자신의 페이퍼 포지션을 이어간 15분 폐루프 재현 · 1단위 명목 대비 % · 검증 게이트 미통과 실험 정책</p></div><span className="performance-badge">사후 재현</span></div>
+  const info = policyInfo(data.revision);
+  const days = Math.max(1, Math.round((Date.parse(last.time) - Date.parse(first.time)) / 86400000));
+  return <section className="card performance" aria-label="행동 재현 PnL">
+    <div className="performance-heading"><div><span className="performance-eyebrow">{info?.version ?? 'ACTION'} REPLAY · 최근 {days}일</span><h2>jev뇨띠 행동 재현 PnL</h2><p>모델 자신의 페이퍼 포지션을 이어간 15분 폐루프 재현 · {PNL_UNITS}</p></div><span className="performance-badge">사후 재현</span></div>
     <div className="performance-metrics">
-      <div><span>평균 손익 · 수수료 후</span><strong>{pct(r.pnlPct)}</strong></div>
+      <div><span>{days}일 누적 손익 · 수수료 후 · 종목 평균</span><strong>{pct(r.pnlPct)}</strong></div>
       <div><span>최대 낙폭 · %p</span><strong>{r.maxDrawdownPts.toFixed(2)}</strong></div>
-      <div><span>1단위 매수 후 보유</span><strong>{pct(r.buyHoldPct)}</strong></div>
+      <div><span>같은 기간 1단위 매수 후 보유</span><strong>{pct(r.buyHoldPct)}</strong></div>
       <div><span>체결 · 종목 평균 누적 수수료</span><strong>{trades.toLocaleString()}회 · {r.feesPct.toFixed(2)}%</strong></div>
     </div>
     <div className="performance-chart" role="img" aria-label="ACTION_V1 페이퍼 손익 및 매수 후 보유 곡선"><ResponsiveContainer width="100%" height="100%"><LineChart data={r.curve}><CartesianGrid vertical={false} stroke="#e8e2d8" /><XAxis dataKey="time" tickFormatter={(v) => String(v).slice(5, 10)} minTickGap={65} /><YAxis tickFormatter={(v) => `${Number(v).toFixed(1)}%`} width={60} /><Tooltip formatter={(v) => pct(Number(v))} labelFormatter={(v) => String(v).slice(0, 16).replace('T', ' ')} /><Line name="jev뇨띠" dataKey="pnlPct" stroke="#a95546" dot={false} isAnimationActive={false} /><Line name="매수 후 보유" dataKey="buyHoldPct" stroke="#99958c" strokeDasharray="4 4" dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>
@@ -32,8 +35,30 @@ export function ActionPerformance({ data }: { data: ActionReplayPayload }) {
     </details>}
     <details className="performance-rules"><summary>페이퍼 재현 계산 기준</summary>
       <p>매 15분 봉 마감마다 한 번 판단합니다. 무포지션에서 롱 진입·숏 진입은 1단위, 추가는 +1단위(최대 3단위, 조화평균 진입가), 축소는 보유 단위의 절반, 청산은 전량입니다.</p>
-      <p>체결은 판단 시점 봉의 종가로 가정하고, 거래 단위마다 수수료 {r.assumptions.feeBpsPerUnit / 100}%를 뺍니다. 손익은 1단위 명목 대비 %이며, 전체 수치는 종목별 손익의 단순 평균입니다. 낙폭은 %p입니다.</p>
-      <p>펀딩비·슬리피지·마지막 미청산 포지션의 청산 비용은 미반영입니다. 교사 거래자의 수량은 모방하지 않습니다. 실제 운용 수익이 아닙니다. {ACTION_DISCLAIMER}.</p>
+      {info && <p>{info.version} 판단 규칙: {info.rules}</p>}
+      <p>체결은 판단 시점 봉의 종가로 가정하고, 거래 단위마다 수수료 {r.assumptions.feeBpsPerUnit / 100}%를 뺍니다. 손익은 1단위 명목 대비 % 단순 합산(복리 아님)이며, 연 수익률이 아니라 표시 구간의 누적입니다. 전체 수치는 종목별 손익의 단순 평균입니다. 낙폭은 %p입니다.</p>
+      <p>펀딩비·슬리피지·마지막 미청산 포지션의 청산 비용은 미반영입니다. 교사 거래자의 수량은 모방하지 않습니다. 실제 운용 수익이 아닙니다. {actionDisclaimer(data.revision)}.</p>
     </details>
+  </section>;
+}
+
+/** Pre-registered validation summary for the served policy (only for revisions listed in policy-info). */
+export function PolicyValidation({ revision }: { revision: string | null }) {
+  const info = policyInfo(revision);
+  if (!info) return null;
+  return <section className="card performance policy-validation" aria-label={`${info.version} 검증 요약`}>
+    <div className="performance-heading"><div><span className="performance-eyebrow">{info.version} · VALIDATION</span><h2>사전 등록 검증 결과</h2>
+      <p>{info.model} · BTC·ETH·SOL·XRP 평균 · 수수료 포함 · {PNL_UNITS}</p></div>
+      <span className="performance-badge">{info.gate.split(' (')[0]}</span></div>
+    <div className="validation-table" role="table">
+      <div role="row" className="validation-head"><span role="columnheader">구간</span><span role="columnheader">jev뇨띠</span><span role="columnheader">단순 보유</span><span role="columnheader">수수료</span></div>
+      {info.windows.map((w) => <div role="row" key={w.label} className={w.confirmatory ? 'validation-confirm' : ''}>
+        <span role="cell"><strong>{w.label}</strong><small>{w.period}</small></span>
+        <span role="cell" className={w.netPct >= 0 ? 'up' : 'down'}>{pct(w.netPct, 1)}</span>
+        <span role="cell">{pct(w.holdPct, 1)}</span>
+        <span role="cell">{w.feesPct === undefined ? '—' : `${w.feesPct.toFixed(1)}%`}</span>
+      </div>)}
+    </div>
+    <p className="performance-range">{info.caveat}. 표본 내(2023) 수치는 규칙 탐색에 쓰인 구간이라 낙관적입니다. <a href={info.contractUrl} target="_blank" rel="noopener noreferrer">사전 등록 문서</a> · <a href="https://github.com/guzus/jev-nyotti#benchmark--autoresearch-log" target="_blank" rel="noopener noreferrer">벤치마크 차트</a> · <a href={info.hfUrl} target="_blank" rel="noopener noreferrer">모델 파일</a></p>
   </section>;
 }

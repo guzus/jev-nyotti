@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, Minus, Plus, Scissors, X } from 'lucide-react';
+import { policyInfo } from './policy-info.js';
 
 export type ActionDecision = import('../server/contracts.js').ActionDecision;
 type ActionName = ActionDecision['action'];
@@ -16,14 +17,20 @@ export const ACTION_LABELS: Record<ActionName, string> = {
 };
 const ACTION_ICONS = { hold: Minus, open_long: ArrowUpRight, open_short: ArrowDownLeft, add: Plus, reduce: Scissors, close: X };
 const SIDE_LABELS: Record<Side, string> = { flat: '무포지션', long: '롱', short: '숏' };
-export const ACTION_DISCLAIMER = '검증 게이트 미통과 실험 · 수수료 후 손실 예상 · 교육용 · 주문 실행 없음 · BTC 외 코인은 검증되지 않은 전이';
+const BASE_DISCLAIMER = '교육용 · 주문 실행 없음 · BTC 외 코인은 검증되지 않은 전이';
+/** Validation status for the served revision; unknown revisions make no validation claim. */
+export function actionDisclaimer(revision?: string | null) {
+  const info = policyInfo(revision);
+  return info ? `${info.version} · ${info.gate} · ${info.caveat} · ${BASE_DISCLAIMER}` : `검증 정보 없는 모델 · ${BASE_DISCLAIMER}`;
+}
 const NUMERIC_KINDS: Record<string, string> = { logreg: '로지스틱 회귀', hgb: 'GBM' };
 
 /** Honest model label from the /action response identity (never a hardcoded model name). */
 export function actionModelLabel(d: { model: string; revision: string; policy?: 'lora' | 'numeric' }) {
   if (d.policy === 'numeric') {
     const kind = d.model.split('/').at(-1) ?? '';
-    return `jev뇨띠 수치 정책 (${NUMERIC_KINDS[kind] ?? kind}) · Qwen 아님`;
+    const version = policyInfo(d.revision)?.version;
+    return `jev뇨띠 ${version ? `${version} ` : ''}수치 정책 (${NUMERIC_KINDS[kind] ?? kind}) · Qwen 아님`;
   }
   const base = d.model.split('/').at(-1) ?? d.model;
   return d.revision.includes('+lora:') ? `${base} LoRA` : `${base} 기본 모델`;
@@ -61,24 +68,25 @@ export function ActionDecisionView({ decision }: { decision: ActionDecision }) {
       <time>{time(row.cutoff)}</time>
       {row.kind === 'gap' ? <span className="log-gap">{row.missedCutoffs}개 판단 누락 · 소급 없음</span> : <><strong>{ACTION_LABELS[row.action!]}</strong><span>{position(row.sideBefore, row.unitsBefore)} → {position(row.sideAfter, row.unitsAfter)}</span>{row.realizedPct !== 0 && <span className={tone(row.realizedPct)}>{pct(row.realizedPct, 3)}</span>}</>}
     </li>)}</ol></details>}
-    <p className="experiment-note">{ACTION_DISCLAIMER}</p>
+    <p className="experiment-note">{actionDisclaimer(decision.revision)}</p>
   </div>;
 }
 
 /** All scheduled coins' ACTION_V1 paper positions from GET /api/paper. */
 export function PaperOverview({ refresh, onSelect }: { refresh: number; onSelect: (symbol: string) => void }) {
   const [rows, setRows] = useState<PaperRow[] | null>(null);
+  const [revision, setRevision] = useState<string | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     const load = () => fetch('/api/paper', { signal: controller.signal }).then((r) => { if (!r.ok) throw Error(); return r.json(); })
-      .then((data: { symbols: PaperRow[] }) => { setRows(data.symbols); setError(false); }).catch((e) => { if (e.name !== 'AbortError') setError(true); });
+      .then((data: { symbols: PaperRow[]; revision?: string }) => { setRows(data.symbols); setRevision(data.revision ?? null); setError(false); }).catch((e) => { if (e.name !== 'AbortError') setError(true); });
     void load();
     const timer = window.setInterval(load, 60000);
     return () => { controller.abort(); window.clearInterval(timer); };
   }, [refresh]);
   return <section className="card paper-overview" aria-label="코인별 페이퍼 포지션">
-    <div className="performance-heading"><div><span className="performance-eyebrow">ACTION_V1 · PAPER</span><h2>코인별 페이퍼 포지션</h2><p>15분 봉 마감마다 판단 · 1단위 명목 대비 % · {ACTION_DISCLAIMER}</p></div></div>
+    <div className="performance-heading"><div><span className="performance-eyebrow">{policyInfo(revision)?.version ?? 'ACTION'} · LIVE PAPER</span><h2>코인별 페이퍼 포지션</h2><p>15분 봉 마감마다 판단 · 누적 · 1단위 명목 대비 % · {actionDisclaimer(revision)}</p></div></div>
     {error ? <p className="inline-error" role="alert">페이퍼 포지션을 불러오지 못했어요.</p> : !rows ? <p className="paper-note" role="status">페이퍼 포지션 확인 중</p> : <div className="paper-table" role="table">
       <div role="row" className="paper-table-head"><span role="columnheader">코인</span><span role="columnheader">포지션</span><span role="columnheader">최근 행동</span><span role="columnheader">평가</span><span role="columnheader">실현</span></div>
       {rows.map((row) => <button type="button" role="row" key={row.symbol} onClick={() => onSelect(row.symbol)}>

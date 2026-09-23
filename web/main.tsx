@@ -11,12 +11,15 @@ import './styles.css';
 import { Performance } from './performance.js';
 import { startAnalytics } from './analytics.js';
 import { ActionDecisionView, PaperOverview, actionModelLabel, type ActionDecision } from './action.js';
+import { PolicyValidation } from './action-performance.js';
+import { policyInfo } from './policy-info.js';
 
 type SymbolCode = import('../server/contracts.js').TradeRequest['symbol'];
 type Interval = 15 | 60 | 240;
 type Action = 'long' | 'short' | 'hold' | 'flat';
 type Status = {
   model: string; trainingStatus: 'base' | 'fine_tuned' | 'action_v1'; providerConfigured: boolean; task?: 'ACTION_V1' | null;
+  action?: { model: string; revision: string } | null;
   scheduledAnalysisEnabled?: boolean; apiAuthRequired: boolean; inferenceMode: 'live' | 'unconfigured'; gaMeasurementId?: string | null;
 };
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number };
@@ -201,6 +204,7 @@ function App() {
   const actionMode = status?.task === 'ACTION_V1';
   // ACTION_V1 identity comes from the served /action response, never a hardcoded model name.
   const actionModel = actionMode && decision && isAction(decision) ? actionModelLabel(decision) : null;
+  const servedPolicy = actionMode ? policyInfo(status?.action?.revision) : null;
   const legacy = decision && !isAction(decision) ? decision : null;
   const action = legacy ? ACTIONS[legacy.action] : null;
   const ActionIcon = action?.icon || Minus;
@@ -222,7 +226,7 @@ function App() {
   return <>
     <header className="site-header">
       <a className="brand" href="/" aria-label="jev뇨띠 홈"><BrandMark /><span className="brand-name">jev뇨띠</span></a>
-      <div className="model-chip" title={actionMode ? '페이퍼 포지션을 이어가는 15분 행동 모방 실험' : status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 실험용 LoRA' : 'Qwen3.5-4B 모델'}><span className="model-chip-name">{actionMode ? actionModel ?? 'ACTION_V1 모델' : 'Qwen3.5-4B'}</span><span className="model-chip-base">{actionMode ? 'ACTION_V1 · 15분' : status?.trainingStatus === 'fine_tuned' ? 'LoRA 학습' : status ? '기본 모델' : '연결 확인 중'}</span></div>
+      <div className="model-chip" title={actionMode ? '페이퍼 포지션을 이어가는 15분 행동 모방 실험' : status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 실험용 LoRA' : 'Qwen3.5-4B 모델'}><span className="model-chip-name">{actionMode ? actionModel ?? 'ACTION_V1 모델' : 'Qwen3.5-4B'}</span><span className="model-chip-base">{actionMode ? `${servedPolicy?.version ?? 'ACTION'} · 15분` : status?.trainingStatus === 'fine_tuned' ? 'LoRA 학습' : status ? '기본 모델' : '연결 확인 중'}</span></div>
     </header>
 
     <main>
@@ -282,14 +286,15 @@ function App() {
         </aside>
       </div>
       {actionMode && <PaperOverview refresh={refresh} onSelect={(next) => changeMarket(next as SymbolCode, 15)} />}
+      {actionMode && <PolicyValidation revision={status?.action?.revision ?? null} />}
       <Performance />
     </main>
     <footer>
-      <span>{actionMode ? 'ACTION_V1 행동 모방 · 교육용 · 주문 실행 없음' : status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 Qwen3.5-4B · 교육용' : status ? 'Qwen3.5-4B 기본 모델 서빙 중' : '모델 연결 확인 중'}</span>
+      <span>{actionMode ? `${servedPolicy ? `${servedPolicy.version} · ${servedPolicy.model}` : '행동 모방'} · 교육용 · 주문 실행 없음` : status?.trainingStatus === 'fine_tuned' ? '거래 기록으로 학습한 Qwen3.5-4B · 교육용' : status ? 'Qwen3.5-4B 기본 모델 서빙 중' : '모델 연결 확인 중'}</span>
       <div className="footer-resources">
         <nav className="project-links" aria-label="프로젝트 링크">
           <a href="https://github.com/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="GitHub 소스 코드 (새 탭)"><Github className="project-logo" size={17} aria-hidden="true" />GitHub<ArrowUpRight size={13} aria-hidden="true" /></a>
-          <a href="https://huggingface.co/guzus/jev-nyotti" target="_blank" rel="noopener noreferrer" aria-label="Hugging Face 학습 어댑터 (새 탭)"><img className="project-logo" src="/huggingface.svg" width="19" height="18" alt="" />Hugging Face<ArrowUpRight size={13} aria-hidden="true" /></a>
+          <a href={actionMode ? servedPolicy?.hfUrl ?? 'https://huggingface.co/guzus/jev-nyotti-action' : 'https://huggingface.co/guzus/jev-nyotti'} target="_blank" rel="noopener noreferrer" aria-label={actionMode ? 'Hugging Face 서빙 모델 (새 탭)' : 'Hugging Face 학습 어댑터 (새 탭)'}><img className="project-logo" src="/huggingface.svg" width="19" height="18" alt="" />Hugging Face<ArrowUpRight size={13} aria-hidden="true" /></a>
           <a href="https://x.com/uncanny_guzus/status/2102341117232693582" target="_blank" rel="noopener noreferrer" aria-label="Release tweet (opens in a new tab)">Release tweet<ArrowUpRight size={13} aria-hidden="true" /></a>
         </nav>
         <span>DYOR NFA</span>
