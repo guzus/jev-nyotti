@@ -1,19 +1,22 @@
 import {useEffect,useState} from 'react';
 import {CartesianGrid,Line,LineChart,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts';
+import {ActionPerformance,type ActionReplayPayload} from './action-performance.js';
 type Report=ReturnType<typeof import('../server/pnl.js').simulatePortfolio>;
 type ReplayRow={symbol:string;marketAsOf:string;action:'long'|'short'|'flat';previousAction:'long'|'short'|'flat'};
 const side={long:'롱',short:'숏',flat:'무포지션'};
-type Payload={history?:ReplayRow[];status:'pending'|'ready';model?:string;revision?:string;generatedAt?:string;source?:string;report?:Report};
+type Payload={task?:undefined;history?:ReplayRow[];status:'pending'|'ready';model?:string;revision?:string;generatedAt?:string;source?:string;report?:Report};
 const money=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n);
 export function Performance(){
- const [data,setData]=useState<Payload|null>(null),[error,setError]=useState(false),[retry,setRetry]=useState(0);
+ const [raw,setData]=useState<Payload|ActionReplayPayload|null>(null),[error,setError]=useState(false),[retry,setRetry]=useState(0);
  useEffect(()=>{const ac=new AbortController();setError(false);fetch('/api/performance',{signal:ac.signal}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(setData).catch(e=>{if(e.name!=='AbortError')setError(true);});return()=>ac.abort();},[retry]);
  const [historySymbol,setHistorySymbol]=useState('전체'),[historyPage,setHistoryPage]=useState(0);
+ const data=raw?.task==='ACTION_V1'?null:raw;
  const history=(data?.history??[]).filter(row=>historySymbol==='전체'||row.symbol===historySymbol);
  const report=data?.report,last=report?.curve.at(-1),first=report?.curve[0];
  const mdd=report?.maxDrawdownPct??0;
  const cadence=report?.assumptions.intervalMinutes??240;
  const capital=report?.initialCapital??10000, count=report?.perSymbol.length??10, fee=(report?.assumptions.feeBps??5)/100,slip=(report?.assumptions.slippageBps??2)/100;
+ if(raw?.task==='ACTION_V1')return <ActionPerformance data={raw}/>;
  return <section className="card performance" aria-label="가상 운용 PnL">
   <div className="performance-heading"><div><span className="performance-eyebrow">MODEL REPLAY</span><h2>jev뇨띠 PnL</h2><p>과거 판단을 이어서 운용했다면{data?.source?.includes('USDT')?' · 금액 단위 USDT ($ 표기)':''}</p></div><span className="performance-badge">{data?.status==='ready'?'사후 재현':'백필 대기'}</span></div>
   <div className="performance-metrics"><div><span>총 손익</span><strong>{last?money(last.pnl):'—'}</strong></div><div><span>누적 수익률</span><strong>{last?`${last.returnPct.toFixed(2)}%`:'—'}</strong></div><div><span>최대 낙폭 · {cadence/60}시간 종가</span><strong>{last?`${mdd.toFixed(2)}%`:'—'}</strong></div><div><span>매수 후 보유 수익률</span><strong>{last?`${report!.buyHoldReturnPct.toFixed(2)}%`:'—'}</strong></div></div>
