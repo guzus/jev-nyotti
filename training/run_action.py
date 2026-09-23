@@ -181,6 +181,117 @@ def encode_prompt(tokenizer, labels, job_dict: dict, max_length: int = MAX_LENGT
             'names': [o.name for o in job.options]}
 
 
+def make_batches(lengths: list[int], max_batch: int = 8, max_spread: int = 192) -> list[list[int]]:
+    """Length-sorted right-padded batches; a small spread keeps the kept-logit window small."""
+    order = sorted(range(len(lengths)), key=lambda i: (lengths[i], i))
+    batches, current = [], []
+    for i in order:
+        if current and (len(current) == max_batch or lengths[i] - lengths[current[0]] > max_spread):
+            batches.append(current)
+            current = []
+        current.append(i)
+    if current:
+        batches.append(current)
+    return batches
+
+
+def score_one(model, prompt: dict) -> list[float]:
+    """KV-free single forward pass; only the final position's label-token logits."""
+    import torch
+    ids = torch.tensor([prompt['input_ids']], dtype=torch.long, device='cuda')
+    out = model(input_ids=ids, attention_mask=torch.ones_like(ids), use_cache=False, logits_to_keep=1)
+    scores = out.logits[0, -1, prompt['candidate_ids']].float()
+    if not torch.isfinite(scores).all():
+        raise FloatingPointError('non-finite logits')
+    return scores.cpu().tolist()
+
+
+def score_batch(model, prompts: list[dict], pad_id: int) -> list[list[float]]:
+    """Right padding is causal-safe (real tokens never see pads, incl. linear-attention layers).
+    Integer logits_to_keep = T - min_len + 1 stays on the same code path as score_one."""
+    import torch
+    lengths = [len(p['input_ids']) for p in prompts]
+    width = max(lengths)
+    keep = width - min(lengths) + 1
+    ids = torch.full((len(prompts), width), pad_id, dtype=torch.long, device='cuda')
+    mask = torch.zeros_like(ids)
+    for b, p in enumerate(prompts):
+        ids[b, :lengths[b]] = torch.tensor(p['input_ids'], device='cuda')
+        mask[b, :lengths[b]] = 1
+    logits = model(input_ids=ids, attention_mask=mask, use_cache=False, logits_to_keep=keep).logits
+    if logits.shape[1] != keep:
+        raise RuntimeError('unexpected kept-logit window')
+    out = []
+    for b, p in enumerate(prompts):
+        scores = logits[b, lengths[b] - 1 - (width - keep), p['candidate_ids']].float()
+        if not torch.isfinite(scores).all():
+            raise FloatingPointError('non-finite logits')
+        out.append(scores.cpu().tolist())
+    del logits
+    return out
+
+
+def score_all(model, prompts: list[dict], pad_id: int, batched: bool = True) -> list[list[float]]:
+    import torch
+    results: list = [None] * len(prompts)
+    with torch.inference_mode():
+        if not batched:
+            for i, p in enumerate(prompts):
+                results[i] = score_one(model, p)
+            return results
+        for batch in make_batches([len(p['input_ids']) for p in prompts]):
+            for i, scores in zip(batch, score_batch(model, [prompts[i] for i in batch], pad_id)):
+                results[i] = scores
+    return results
+
+
+def batched_parity(model, prompts: list[dict], pad_id: int, cases: int = 8, tolerance: float = 0.15) -> dict:
+    """Compare batched vs sequential logits on PADDED rows (shorter than their batch maximum)."""
+    import time
+    import torch
+    lengths = [len(p['input_ids']) for p in prompts]
+    padded = [(batch, i) for batch in make_batches(lengths) for i in batch if lengths[i] < max(lengths[j] for j in batch)]
+    chosen = padded[:: max(1, len(padded) // cases)][:cases] or [(b, b[0]) for b in make_batches(lengths)[:cases]]
+    diffs, same = [], True
+    tick = time.monotonic()
+    with torch.inference_mode():
+        sequential = [score_one(model, prompts[i]) for _, i in chosen]
+        seq_seconds = (time.monotonic() - tick) / len(chosen)
+        for (batch, i), seq in zip(chosen, sequential):
+            got = score_batch(model, [prompts[j] for j in batch], pad_id)[batch.index(i)]
+            diffs.append(max(abs(a - b) for a, b in zip(got, seq)))
+            same &= max(range(len(got)), key=got.__getitem__) == max(range(len(seq)), key=seq.__getitem__)
+    # A padding/position bug moves logits by whole units; bf16 batch noise can flip exact ties,
+    # so the logit tolerance (same as reload parity) decides and argmax identity is reported.
+    return {'cases': len(chosen), 'padded_cases': bool(padded), 'max_logit_difference': max(diffs),
+            'argmax_identical': same, 'passed': max(diffs) < tolerance,
+            'sequential_seconds_per_row': seq_seconds}
+
+
+class DeadlineReached(RuntimeError):
+    pass
+
+
+def make_decide_fn(model, tokenizer, labels, margin: float, deadline_epoch: float, sink: list):
+    """Rollout policy: serving prompt -> single forward -> action_eval.decide with frozen margin."""
+    import time
+    from action_eval import decide
+
+    def decide_fn(job: dict) -> str:
+        if time.time() >= deadline_epoch:
+            raise DeadlineReached('rollout deadline')
+        prompt = encode_prompt(tokenizer, labels, job)
+        logits = score_one(model, prompt)
+        sink.append({'cutoff': job['state']['data_cutoff'], 'names': prompt['names'], 'logits': logits})
+        return decide(prompt['names'], logits, margin)
+    return decide_fn
+
+
+def rollout_summary(result: dict) -> dict:
+    """Aggregate rollout fields for report.json; per-decision rows (absolute prices) excluded."""
+    return {k: v for k, v in result.items() if k != 'decisions'}
+
+
 def split_summary(rows: list[dict]) -> dict:
     return {'count': len(rows), 'by_action': dict(sorted(Counter(r['target_action'] for r in rows).items())),
             'by_side': dict(sorted(Counter(r['side'] for r in rows).items()))}

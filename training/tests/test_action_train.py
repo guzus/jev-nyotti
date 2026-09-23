@@ -203,5 +203,32 @@ class EncodingTests(unittest.TestCase):
             ra.encode_prompt(Tokenizer(), self.labels, row['job'], max_length=100)
 
 
+class ScoringHelperTests(unittest.TestCase):
+    def test_batches_cover_all_rows_once_with_bounded_spread(self):
+        lengths = [900, 1500, 905, 1510, 1200, 910, 1499, 1700, 902, 1501]
+        batches = ra.make_batches(lengths, max_batch=3, max_spread=50)
+        self.assertEqual(sorted(i for b in batches for i in b), list(range(len(lengths))))
+        for batch in batches:
+            self.assertLessEqual(len(batch), 3)
+            self.assertLessEqual(max(lengths[i] for i in batch) - min(lengths[i] for i in batch), 50)
+            self.assertEqual([lengths[i] for i in batch], sorted(lengths[i] for i in batch))
+
+    def test_rollout_summary_drops_price_bearing_decisions(self):
+        summary = ra.rollout_summary({'opens': 1, 'decisions': [{'price': 9000.0}]})
+        self.assertEqual(summary, {'opens': 1})
+
+
+class BudgetTests(unittest.TestCase):
+    def test_planned_cost_within_cap_including_overhead(self):
+        self.assertEqual(ra.OVERHEAD_SECONDS, 300)
+        self.assertAlmostEqual(ra.planned_cost_usd(), 0.0013 * (1800 + 300))
+        self.assertLessEqual(ra.planned_cost_usd(), ra.BUDGET_USD)
+        self.assertGreater(ra.planned_cost_usd(2100), ra.BUDGET_USD)  # longer worker would breach $3
+
+    def test_training_cap_fits_inside_worker(self):
+        self.assertLess(ra.TRAIN_WALL_SECONDS, ra.MAX_SECONDS)
+        self.assertGreaterEqual(ra.MAX_STEPS, ra.MIN_STEPS)
+
+
 if __name__ == '__main__':
     unittest.main()
