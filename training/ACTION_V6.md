@@ -43,3 +43,23 @@ validation predicted/teacher trade rate within 0.9–1.1×.
 
 Fee-inclusive PnL is reported, not gated: the 2022 window, the V5 confirmation window and the
 2023/2024 lab years. If the gate passes, V6 replaces V4 live.
+
+## Measured outcome — 2026-09-23: gate FAILED (1 of 4), not deployed
+
+- **Validation selection** (`.runtime/action-v6/v6_selection.json`): HistGradientBoosting won with
+  val trade F1 0.252. Logistic regression scored 0.19–0.20; with time-of-day features, 0.191.
+- **Frozen margins:** flat −1.58, position −1.09. [Results](ACTION_V6_RESULTS.json).
+
+| Criterion (2021 test) | V6 | Threshold | |
+|---|---:|---:|---|
+| Trade F1 | 0.205 | > 0.130 (V4 on 2021) | pass |
+| Action macro-F1 | 0.063 | > 0.035 (V4 on 2021) | pass |
+| Predicted / teacher trade rate | 2.29× | 0.5–2× | **fail** |
+| Unseen 2022-03 closed loop | 22 opens, 21 closes, 53 % in position | non-absorbing | pass |
+
+Findings:
+- More data improves imitation: trade F1 is +58 % over the live V4 on unseen 2021.
+- The 2022 30-day rollout lost −4.6 % after fees (6.4 % fees), the best out-of-sample PnL so far.
+  It is still negative.
+- The rate-matched margins drifted. The trader's activity changed between 2020 H2 and 2021, so a
+  static margin over-trades. 2021 has now been viewed, and no unseen teacher period remains.
